@@ -21,6 +21,7 @@ class Environment:
         self.pits = {tuple(position) for position in board["pits"]}  # Conjunto de posiciones de pozos
 
         self.bump = False  # Indica si el agente ha chocado con una pared
+        self.scream = False  # Indica si el Wumpus ha sido asesinado
 
         self.total_gold = len(self.gold)  # Total de oro en el tablero
 
@@ -39,7 +40,7 @@ class Environment:
             ),
             "glitter": position in self.gold,  # Hay brillo si el agente está en la misma celda que el oro
             "bump": self.bump,  # Indica si el agente ha chocado con una pared (se actualiza en execute_action)
-            "scream": False  # Se inicializa como falso; se actualizará si el Wumpus es asesinado
+            "scream": self.scream
         }
 
     # Método para ejecutar una acción del agente y actualizar el estado del entorno en consecuencia.
@@ -49,6 +50,7 @@ class Environment:
             return  # Si el agente no está vivo, no se puede ejecutar ninguna acción
 
         self.bump = False  # Reinicia el golpe para la nueva acción.
+        self.scream = False  # Reinicia el grito para la nueva acción.
 
         directions = ['N', 'E', 'S', 'W']  # Lista de direcciones en orden horario
 
@@ -89,3 +91,37 @@ class Environment:
             if agent.position in self.gold:
                 self.gold.remove(agent.position)  # Elimina el oro de la celda
                 agent.collected_gold += 1  # Incrementa el contador de oro recolectado del agente
+
+        elif action == "SHOOT":
+
+            if agent.arrows <= 0:
+                return  # No hay flechas para disparar
+
+            agent.arrows -= 1  # Disminuye el número de flechas del agente
+
+            movements = {
+                'N': (0, 1),  # Movimiento hacia el norte / arriba
+                'E': (1, 0),  # Movimiento hacia el este / derecha
+                'S': (0, -1), # Movimiento hacia el sur / abajo
+                'W': (-1, 0)  # Movimiento hacia el oeste / izquierda
+            }
+
+            x, y = agent.position
+            dx, dy = movements[agent.direction]
+            width, height = self.board_size
+
+            # La flecha comienza en la casilla que está delante de Pedro
+            x = x + dx
+            y = y + dy
+
+            while 1 <= x <= width and 1 <= y <= height:  # Mientras la flecha esté dentro del tablero
+
+                arrow_position = (x, y)
+
+                if arrow_position in self.wumpus:
+                    self.wumpus.remove(arrow_position)  # Elimina al Wumpus de la celda
+                    self.scream = True  # Indica que el Wumpus ha sido asesinado
+                    break  # La flecha se detiene después de matar al Wumpus
+
+                x = x + dx
+                y = y + dy

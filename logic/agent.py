@@ -3,7 +3,7 @@ from logic.search import bfs # Importa la función bfs desde el módulo logic.se
 class Agent:
     # Constructor del agente, inicializa la posición, dirección, tamaño del tablero, 
     # estado de vida, oro recolectado y total de oro, celdas visitadas y seguras, y percepciones.
-    def __init__(self, initial_position, total_gold, board_size, direction='E'):
+    def __init__(self, initial_position, total_gold, board_size, direction='E', arrows=1):
         self.position = initial_position
         self.direction = direction
         self.board_size = board_size # Tamaño del tablero (ancho, alto) / (16, 16) por ejemplo
@@ -11,6 +11,7 @@ class Agent:
         self.alive = True
 
         self.collected_gold = 0
+        self.arrows = arrows
         self.total_gold = total_gold
 
         self.visited = set() # Conjunto de posiciones visitadas
@@ -30,6 +31,23 @@ class Agent:
 
     # Método para recibir percepciones del entorno y actualizar el conocimiento del agente.
     def perceive(self, perception):
+
+        if not self.alive:
+            return  # Si el agente no está vivo, no puede percibir nada
+
+        if perception["scream"]:
+
+            # Los hedores anteriores deben volver a comprobarse, 
+            # ya que el Wumpus ha sido asesinado y las celdas vecinas 
+            # ya no deberían tener hedor.
+
+            for previous_perception in self.perceptions.values(): # Valores sin las posiciones, solo las percepciones almacenadas en el diccionario de percepciones del agente...
+                if previous_perception["stench"] is True:
+                    previous_perception["stench"] = None  # Los hedores confirmados como True pasan a None, para luego ser recalculados en update_knowledge() y reflejar que el Wumpus ha sido asesinado.
+
+            # Se eliminan los posibles y confirmados Wumpus, ya que el Wumpus ha sido asesinado
+            self.possible_wumpus.clear()
+            self.confirmed_wumpus.clear() 
 
         # Guarda lo que recibe del entorno...
         self.visited.add(self.position) # Marca la posición actual como visitada...
@@ -134,7 +152,7 @@ class Agent:
                 self.no_pit_cells.update(neighbors) # Agrega los vecinos a las celdas sin pozos...
 
             # Si no hay hedor, los vecinos no tienen Wumpus
-            if not perception["stench"]:
+            if not perception["stench"] is False: # Se verifica que la percepción de hedor no sea None, ya que None indica que el Wumpus ha sido asesinado y no se puede deducir información sobre los vecinos...
                 self.no_wumpus_cells.update(neighbors) # Agrega los vecinos a las celdas sin Wumpus...
         
         # Combinación: Una casilla es segura si no tiene pozo y no tiene Wumpus
@@ -163,7 +181,7 @@ class Agent:
                 if len(candidates) == 1:
                     self.confirmed_pits.update(candidates) # Confirma la posición como pozo
 
-            if perception["stench"]:
+            if perception["stench"] is True:
                 candidates = neighbors - self.no_wumpus_cells # Vecinos que podrían tener Wumpus
 
                 self.possible_wumpus.update(candidates) # Agrega los candidatos a posibles Wumpus
