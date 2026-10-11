@@ -43,7 +43,10 @@ class Agent:
 
             for previous_perception in self.perceptions.values(): # Valores sin las posiciones, solo las percepciones almacenadas en el diccionario de percepciones del agente...
                 if previous_perception["stench"] is True:
-                    previous_perception["stench"] = None  # Los hedores confirmados como True pasan a None, para luego ser recalculados en update_knowledge() y reflejar que el Wumpus ha sido asesinado.
+
+                    # Al morir un Wumpus, los hedores anteriores podrían haber cambiado.
+                    # # Deben comprobarse nuevamente porque puede haber otros Wumpus cerca.
+                    previous_perception["stench"] = None
 
             # Se eliminan los posibles y confirmados Wumpus, ya que el Wumpus ha sido asesinado
             self.possible_wumpus.clear()
@@ -97,8 +100,15 @@ class Agent:
                     best_path = path # Actualiza el mejor camino encontrado...
                     best_distance = distance # Actualiza la mejor distancia encontrada...
 
-        if best_path is None: # Si no se encontró ningún camino hacia una celda segura no visitada...
-            return "NO_SAFE_PATH" # Indica que no hay un camino seguro hacia una celda segura no visitada...
+        if best_path is None: 
+
+            # Intenta disparar cuando no puede seguir explorando
+            action = self.shoot_action()
+
+            if action is not None:
+                return action # Si hay una acción de disparo disponible, la devuelve...
+            
+            return "NO_SAFE_PATH" 
         
         # Avanzar hacia la siguiente celda en el mejor camino encontrado...
         next_position = best_path[1] # Obtiene la siguiente posición en el mejor camino encontrado...
@@ -152,7 +162,7 @@ class Agent:
                 self.no_pit_cells.update(neighbors) # Agrega los vecinos a las celdas sin pozos...
 
             # Si no hay hedor, los vecinos no tienen Wumpus
-            if not perception["stench"] is False: # Se verifica que la percepción de hedor no sea None, ya que None indica que el Wumpus ha sido asesinado y no se puede deducir información sobre los vecinos...
+            if perception["stench"] is False: # Se verifica que la percepción de hedor no sea None, ya que None indica que el Wumpus ha sido asesinado y no se puede deducir información sobre los vecinos...
                 self.no_wumpus_cells.update(neighbors) # Agrega los vecinos a las celdas sin Wumpus...
         
         # Combinación: Una casilla es segura si no tiene pozo y no tiene Wumpus
@@ -226,6 +236,73 @@ class Agent:
 
         return "TURN_RIGHT"  # De lo contrario, gira a la derecha
 
+    # Metodo para decidir si disparar al Wumpus confirmado, buscando una celda 
+    # segura desde donde disparar y determinando la acción necesaria para llegar 
+    # a esa celda o disparar si ya está en posición.
+    # NO EJECUTA EL DISPARO, SOLO DEVUELVE LA ACCIÓN NECESARIA PARA 
+    # LLEGAR A LA CELDA DESDE DONDE DISPARAR O PARA DISPARAR SI YA ESTÁ EN POSICIÓN.
+    def shoot_action(self):
 
+        if self.arrows <= 0 or not self.confirmed_wumpus:
+            return None # No hay flechas disponibles o no hay Wumpus confirmado para disparar...
+
+        best_path = None
+        best_target = None
+        best_distance = float('inf') # Inicializa la mejor distancia como infinito para encontrar la mínima...
+
+        # Busca una casilla segura desde donde apuntar a un Wumpus confirmado...
+        for target in sorted(self.confirmed_wumpus):
+            target_x, target_y = target
+
+            for shooting_position in sorted(self.safe_cells):
+                shooting_x, shooting_y = shooting_position
+
+                # Deben estar alineados horizontal o verticalmente para disparar
+                if shooting_x != target_x and shooting_y != target_y:
+                    continue
+
+                result = bfs(
+                    self.safe_cells,
+                    self.position, 
+                    shooting_position, 
+                    self.get_neighbors) # Llama a la función bfs para encontrar un camino hacia una celda segura desde donde disparar al Wumpus confirmado...
+
+                if result is not None:
+                    path, distance = result # Desempaqueta el resultado de bfs en camino y distancia...
+
+                    if distance < best_distance: # Si la distancia encontrada es menor que la mejor distancia conocida...
+                        best_path = path # Actualiza el mejor camino encontrado...
+                        best_target = target # Actualiza el mejor objetivo (Wumpus confirmado) encontrado...
+                        best_distance = distance # Actualiza la mejor distancia encontrada...
+
+        # Si no se encontró ningún camino hacia una celda segura desde donde disparar 
+        # al Wumpus confirmado...
+        if best_path is None:
+            return None
+
+        # Si todavia no llegó, decide como avanzar hacia ella
+        if len(best_path) > 1:
+            next_position = best_path[1] # Obtiene la siguiente posición en el mejor camino encontrado...
+            return self.move_action(next_position) # Llama al método move_action para determinar la acción necesaria para moverse hacia la siguiente posición...
+
+        # Si ya llegó a la posición desde donde disparar, decide disparar.
+        # Determina hacia donde debe apuntar
+        x, y = self.position
+        target_x, target_y = best_target
+
+        if target_x > x:
+            target_direction = 'E'  # Este / Derecha
+        elif target_x < x:
+            target_direction = 'W'  # Oeste / Izquierda
+        elif target_y > y:
+            target_direction = 'N'  # Norte / Arriba
+        else:
+            target_direction = 'S'  # Sur / Abajo
+
+        if self.direction == target_direction:
+            return "SHOOT"  # Si ya está mirando en la dirección correcta, dispara
+
+        # Si no está mirando en la dirección correcta, gira hacia la dirección objetivo
+        return self.move_action(best_target) # Llama al método move_action para determinar la acción necesaria para girar hacia la dirección objetivo antes de disparar...
 
         
