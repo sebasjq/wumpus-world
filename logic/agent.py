@@ -94,7 +94,7 @@ class Agent:
     def get_neighbors(self, position):
         x, y = position
         width, height = self.board_size
-        neighbors = []
+        neighbors = [] # Lista para almacenar las celdas vecinas de la posición dada...
 
         if x > 1:
             neighbors.append((x - 1, y))  # Celda a la izquierda / Oeste
@@ -117,19 +117,65 @@ class Agent:
     # actuales y las celdas vecinas / Agrega las casillas que deduce como seguras...
     def update_knowledge(self):
 
-        perception = self.perceptions[self.position] # Obtiene la percepción actual del agente en su posición actual...
-        neighbors = self.get_neighbors(self.position) # Obtiene los vecinos de la posición actual del agente...
+        if not self.alive:
+            return  # Si el agente no está vivo, no se puede actualizar el conocimiento
 
-        # Si no hay brisa, los vecinos no tienen pozos
-        if not perception["breeze"]:
-            self.no_pit_cells.update(neighbors) # Agrega los vecinos a las celdas sin pozos...q
-    
-        # Si no hay hedor, los vecinos no tienen Wumpus
-        if not perception["stench"]:
-            self.no_wumpus_cells.update(neighbors) # Agrega los vecinos a las celdas sin Wumpus...
+        # Agrega las celdas visitadas a las celdas sin pozos y sin Wumpus, 
+        # ya que al estar en ellas y no haber muerto, se deduce que son seguras.
+        self.no_pit_cells.update(self.visited) 
+        self.no_wumpus_cells.update(self.visited)
 
-        # Una casilla es segura si no tiene pozo y no tiene Wumpus
-        self.safe_cells.update(self.no_pit_cells & self.no_wumpus_cells) # Actualiza las celdas seguras como la intersección de las celdas sin pozos y sin Wumpus...
+        # Primero reúne la información que descarta los peligros
+        for position, perception in self.perceptions.items(): # Itera sobre las percepciones almacenadas para cada posición visitada por el agente...
+            neighbors = self.get_neighbors(position) # Obtiene los vecinos de la posición visitada por el agente...
+
+            # Si no hay brisa, los vecinos no tienen pozos
+            if not perception["breeze"]:
+                self.no_pit_cells.update(neighbors) # Agrega los vecinos a las celdas sin pozos...
+
+            # Si no hay hedor, los vecinos no tienen Wumpus
+            if not perception["stench"]:
+                self.no_wumpus_cells.update(neighbors) # Agrega los vecinos a las celdas sin Wumpus...
+        
+        # Combinación: Una casilla es segura si no tiene pozo y no tiene Wumpus
+        self.safe_cells.update(self.no_pit_cells & self.no_wumpus_cells) 
+
+
+        # Recalculación de los candidatos posibles a pozos y wumpus
+        # usando toda la información disponible, incluyendo las percepciones de brisa y hedor.
+
+        # Limpieza de los conjuntos de posibles pozos y Wumpus antes de recalcularlos
+        self.possible_pits.clear() 
+        self.possible_wumpus.clear()
+
+        for position, perception in self.perceptions.items():
+
+            # Como neighbors es una lista, la convertimos en 
+            # un conjunto para operaciones de conjuntos
+            neighbors = set(self.get_neighbors(position))
+
+            if perception["breeze"]:
+                candidates = neighbors - self.no_pit_cells # Vecinos que podrían tener pozos
+
+                self.possible_pits.update(candidates) # Agrega los candidatos a posibles pozos
+
+                # Si queda un solo candidato, lo confirmamos como pozo
+                if len(candidates) == 1:
+                    self.confirmed_pits.update(candidates) # Confirma la posición como pozo
+
+            if perception["stench"]:
+                candidates = neighbors - self.no_wumpus_cells # Vecinos que podrían tener Wumpus
+
+                self.possible_wumpus.update(candidates) # Agrega los candidatos a posibles Wumpus
+
+                # Si queda un solo candidato, lo confirmamos como Wumpus
+                if len(candidates) == 1:
+                    self.confirmed_wumpus.update(candidates) # Confirma la posición como Wumpus
+
+        # Elimina los pozos y Wumpus confirmados de los posibles 
+        # para mantener la consistencia del conocimiento del agente
+        self.possible_pits -= self.confirmed_pits # Elimina los pozos confirmados de los posibles pozos
+        self.possible_wumpus -= self.confirmed_wumpus # Elimina los Wumpus confirmados de los posibles Wumpus
 
     # Método para determinar la acción necesaria para moverse hacia la siguiente posición en el camino.
     # Ya sea girando a la izquierda, girando a la derecha o avanzando hacia adelante, según la orientación actual del agente y la posición objetivo.

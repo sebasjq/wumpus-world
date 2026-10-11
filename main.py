@@ -23,6 +23,11 @@ while True:
     perception = environment.get_perception(pedro.position, neighbors)
     pedro.perceive(perception)
 
+    print("Hoyos posibles:", sorted(pedro.possible_pits))
+    print("Hoyos confirmados:", sorted(pedro.confirmed_pits))
+    print("Wumpus posibles:", sorted(pedro.possible_wumpus))
+    print("Wumpus confirmados:", sorted(pedro.confirmed_wumpus))
+
     # Decidir qué hacer usando su conocimiento
     action = pedro.decide()
 
