@@ -5,7 +5,7 @@ from logic.agent import Agent
 board_path = (
     Path(__file__).resolve().parent 
     / "data" 
-    / "board_4x4.json")
+    / "board_16x16.json")
 
 environment = Environment(board_path)
 
@@ -15,7 +15,7 @@ pedro = Agent(
     board_size=environment.board_size,
     direction=environment.initial_direction,
     arrows=1,
-    allow_risk=True  # Permitir que Pedro tome riesgos al moverse hacia celdas inciertas
+    allow_risk=False  # Permitir que Pedro tome riesgos al moverse hacia celdas inciertas
 )
 
 while True:
@@ -45,8 +45,13 @@ while True:
     print()
 
     # Comprobar si la ejecución debe terminar
-    if action == "STOP":
-        print("Pedro ha recolectado todo el oro y ha decidido detenerse.")
+    if action == "CLIMB":
+        if pedro.collected_gold == pedro.total_gold:
+            print("Pedro ha regresado a la entrada y ha salido con todo el oro. Fin de la ejecución.")
+        else:
+            print("Pedro se ha retirado con oro pendiente.")
+            print("Oro recolectado:", pedro.collected_gold)
+
         break
 
     elif action == "DEAD":

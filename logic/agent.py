@@ -5,11 +5,13 @@ class Agent:
     # Constructor del agente, inicializa la posición, dirección, tamaño del tablero, 
     # estado de vida, oro recolectado y total de oro, celdas visitadas y seguras, y percepciones.
     def __init__(self, initial_position, total_gold, board_size, direction='E', arrows=1, allow_risk=False):
-        self.position = initial_position
+        self.position = initial_position # Cambia
+        self.initial_position = initial_position # Permanece igual
         self.direction = direction
         self.board_size = board_size # Tamaño del tablero (ancho, alto) / (16, 16) por ejemplo
 
         self.alive = True
+        self.returning_home = False # Recuerda que Pedro decidio retirarse, para que no vuelva a explorar durante el regreso
 
         self.collected_gold = 0
         self.arrows = arrows
@@ -71,8 +73,8 @@ class Agent:
         if not self.alive: # Si el agente no está vivo, no puede tomar decisiones...
             return "DEAD"
 
-        if self.collected_gold == self.total_gold: # Si el agente ha recolectado todo el oro, no necesita seguir buscando...
-            return "STOP"
+        if self.returning_home or self.collected_gold == self.total_gold: # Si el agente ha recolectado todo el oro, no necesita seguir buscando...
+            return self.return_action()
         
         perception = self.perceptions[self.position] # Obtiene la percepción actual del agente en su posición actual...
 
@@ -117,7 +119,9 @@ class Agent:
             if action is not None:
                 return action # Si hay una acción de riesgo disponible, la devuelve...
 
-            return "NO_SAFE_PATH" 
+            # No encuentra como continuar: decide retirarse
+            self.returning_home = True
+            return self.return_action()
         
         # Avanzar hacia la siguiente celda en el mejor camino encontrado...
         next_position = best_path[1] # Obtiene la siguiente posición en el mejor camino encontrado...
@@ -373,6 +377,30 @@ class Agent:
         # Ya está junto a la candidata: gira o avanza hacia ella
         return self.move_action(best_target)
 
+    # Método para decidir cómo regresar a la posición inicial del agente (entrada)
+    # buscando una ruta segura conocida y determinando la acción necesaria para
+    # llegar a la siguiente celda en el camino de regreso a la entrada.
+    def return_action(self):
+
+        # Si ya esta en la entrada, puede salir
+        if self.position == self.initial_position:
+            return "CLIMB"
+
+        # Busca una ruta hasta la entrada usando BFS con casillas seguras
+        result = bfs(
+            self.safe_cells,
+            self.position, 
+            self.initial_position, 
+            self.get_neighbors)
+
+        if result is None:
+            return "NO_SAFE_PATH"  # No hay ruta segura conocida hasta la entrada
+
+        path, distance = result
+
+        # Decide como avanzar hacia la siguiente celda en el camino de regreso a la entrada
+        return self.move_action(path[1])
+            
 
 
         
