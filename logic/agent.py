@@ -1,9 +1,10 @@
 from logic.search import bfs # Importa la función bfs desde el módulo logic.search para realizar búsquedas en anchura (BFS) en el entorno del agente.
 
 class Agent:
+    
     # Constructor del agente, inicializa la posición, dirección, tamaño del tablero, 
     # estado de vida, oro recolectado y total de oro, celdas visitadas y seguras, y percepciones.
-    def __init__(self, initial_position, total_gold, board_size, direction='E', arrows=1):
+    def __init__(self, initial_position, total_gold, board_size, direction='E', arrows=1, allow_risk=False):
         self.position = initial_position
         self.direction = direction
         self.board_size = board_size # Tamaño del tablero (ancho, alto) / (16, 16) por ejemplo
@@ -13,6 +14,8 @@ class Agent:
         self.collected_gold = 0
         self.arrows = arrows
         self.total_gold = total_gold
+
+        self.allow_risk = allow_risk # Permite al agente tomar riesgos si no hay celdas seguras conocidas
 
         self.visited = set() # Conjunto de posiciones visitadas
         self.safe_cells = {initial_position} # Conjunto de celdas seguras / La posición inicial siempre es segura...

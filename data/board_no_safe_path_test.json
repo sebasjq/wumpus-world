@@ -1,0 +1,8 @@
+{
+  "board_size": [4, 4],
+  "initial_position": [1, 1],
+  "direction": "E",
+  "gold": [[4, 4]],
+  "wumpus": [[3, 3]],
+  "pits": [[1, 2], [2, 1]]
+}

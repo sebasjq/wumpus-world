@@ -2,7 +2,10 @@ from pathlib import Path
 from logic.environment import Environment
 from logic.agent import Agent
 
-board_path = Path(__file__).resolve().parent / "data" / "board_4x4.json"
+board_path = (
+    Path(__file__).resolve().parent 
+    / "data" 
+    / "board_16x16.json")
 
 environment = Environment(board_path)
 
@@ -10,7 +13,8 @@ pedro = Agent(
     initial_position=environment.initial_position,
     total_gold=environment.total_gold,
     board_size=environment.board_size,
-    direction=environment.initial_direction
+    direction=environment.initial_direction,
+    arrows=1
 )
 
 while True:
@@ -36,6 +40,7 @@ while True:
     print("Dirección:", pedro.direction)
     print("Percepción:", perception)
     print("Acción elegida:", action)
+    print("Flechas restantes:", pedro.arrows)
     print()
 
     # Comprobar si la ejecución debe terminar
@@ -54,3 +59,9 @@ while True:
     # Ejecutar la acción elegida por Pedro y actualizar el entorno
     # Vuelve a comenzar el ciclo
     environment.execute_action(pedro, action)
+
+
+print("Oro recolectado:", pedro.collected_gold)
+print("Oro pendiente:", pedro.total_gold - pedro.collected_gold)
+print("¿Pedro sigue vivo?:", pedro.alive)
+print("Flechas restantes:", pedro.arrows)
