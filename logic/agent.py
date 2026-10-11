@@ -1,7 +1,7 @@
 from logic.search import bfs # Importa la función bfs desde el módulo logic.search para realizar búsquedas en anchura (BFS) en el entorno del agente.
 
 class Agent:
-    
+
     # Constructor del agente, inicializa la posición, dirección, tamaño del tablero, 
     # estado de vida, oro recolectado y total de oro, celdas visitadas y seguras, y percepciones.
     def __init__(self, initial_position, total_gold, board_size, direction='E', arrows=1, allow_risk=False):
@@ -110,7 +110,13 @@ class Agent:
 
             if action is not None:
                 return action # Si hay una acción de disparo disponible, la devuelve...
-            
+
+            # Si está permitido tomar riesgos, intenta moverse hacia una celda incierta
+            action = self.risk_action()
+
+            if action is not None:
+                return action # Si hay una acción de riesgo disponible, la devuelve...
+
             return "NO_SAFE_PATH" 
         
         # Avanzar hacia la siguiente celda en el mejor camino encontrado...
@@ -307,5 +313,66 @@ class Agent:
 
         # Si no está mirando en la dirección correcta, gira hacia la dirección objetivo
         return self.move_action(best_target) # Llama al método move_action para determinar la acción necesaria para girar hacia la dirección objetivo antes de disparar...
+
+    # Método para decidir si tomar un riesgo y moverse hacia una celda incierta, 
+    # buscando una celda segura desde donde entrar a la incierta y determinando la 
+    # acción necesaria para llegar a esa celda o moverse hacia la incierta si ya 
+    # está en posición.
+    def risk_action(self):
+
+        if not self.allow_risk:
+            return None  # Si no se permite tomar riesgos, no se puede decidir una acción de riesgo
+
+        best_path = None
+        best_target = None
+        best_distance = float('inf') 
+
+        confirmed_dangers = self.confirmed_pits | self.confirmed_wumpus # Combina los conjuntos de pozos y Wumpus confirmados para obtener un conjunto de peligros confirmados...
+
+        # Busca una casilla segura desde donde entrar a una incierta
+        # departure es la casilla segura desde la que Pedro dará el último paso
+        # hacia una casilla incierta, y target es la casilla incierta a la que Pedro quiere entrar.
+        for departure in sorted(self.safe_cells):
+
+            result = bfs(
+                self.safe_cells,
+                self.position, 
+                departure, 
+                self.get_neighbors) # Llama a la función bfs para encontrar un camino hacia una celda segura desde donde entrar a una incierta...
+
+            if result is None:
+                continue
+
+            path, distance = result # Desempaqueta el resultado de bfs en camino y distancia...
+
+            for target in sorted(self.get_neighbors(departure)):
+
+                # Solo considera casillas inciertas y no visitadas
+                if target in self.safe_cells or target in self.visited:
+                    continue
+
+                # Nunca elige un peligro confirmado
+                if target in confirmed_dangers:
+                    continue
+
+                # Incluye el ultima paso hacia la casilla incierta en la distancia total
+                total_distance = distance + 1
+
+                if total_distance < best_distance: # Si la distancia total encontrada es menor que la mejor distancia conocida...
+                    best_path = path # Actualiza el mejor camino encontrado...
+                    best_target = target # Actualiza el mejor objetivo (casilla incierta) encontrado...
+                    best_distance = total_distance # Actualiza la mejor distancia encontrada...
+
+        if best_path is None:
+            return None  # Si no se encontró ningún camino hacia una celda segura desde donde entrar a una incierta, no se puede decidir una acción de riesgo
+
+        # Primero recorre únicamente las casillas seguras
+        if len(best_path) > 1:
+            return self.move_action(best_path[1])
+
+        # Ya está junto a la candidata: gira o avanza hacia ella
+        return self.move_action(best_target)
+
+
 
         

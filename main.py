@@ -5,7 +5,7 @@ from logic.agent import Agent
 board_path = (
     Path(__file__).resolve().parent 
     / "data" 
-    / "board_16x16.json")
+    / "board_4x4.json")
 
 environment = Environment(board_path)
 
@@ -14,7 +14,8 @@ pedro = Agent(
     total_gold=environment.total_gold,
     board_size=environment.board_size,
     direction=environment.initial_direction,
-    arrows=1
+    arrows=1,
+    allow_risk=True  # Permitir que Pedro tome riesgos al moverse hacia celdas inciertas
 )
 
 while True:
