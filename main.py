@@ -13,31 +13,39 @@ pedro = Agent(
     direction=environment.initial_direction
 )
 
-print("Tamaño:", environment.board_size)
-print("Oro:", environment.gold)
-print("Wumpus:", environment.wumpus)
-print("Hoyos:", environment.pits)
-print("Posición de Pedro:", pedro.position)
+while True:
 
-# Verificacion de percepciones y actualización del conocimiento del agente
-neighbors = pedro.get_neighbors(pedro.position)
+    # Obtener las casillas vecinas de la posición actual del agente
+    neighbors = pedro.get_neighbors(pedro.position)
 
-perception = environment.get_perception(
-    pedro.position,
-    neighbors
-)
+    # Obtener las percepciones del entorno para la posición actual del agente
+    # y actualiza el conocimiento de Pedro
+    perception = environment.get_perception(pedro.position, neighbors)
+    pedro.perceive(perception)
 
-pedro.perceive(perception)
+    # Decidir qué hacer usando su conocimiento
+    action = pedro.decide()
 
-print("Percepción:", perception)
-print("Casillas seguras:", pedro.safe_cells)
 
-# Verificación de la acción elegida por el agente y ejecución de la misma en el entorno
-action = pedro.decide()
+    print("Posición actual:", pedro.position)
+    print("Dirección:", pedro.direction)
+    print("Percepción:", perception)
+    print("Acción elegida:", action)
+    print()
 
-print("Acción elegida:", action)
-print("Dirección antes:", pedro.direction)
+    # Comprobar si la ejecución debe terminar
+    if action == "STOP":
+        print("Pedro ha recolectado todo el oro y ha decidido detenerse.")
+        break
 
-environment.execute_action(pedro, action)
+    elif action == "DEAD":
+        print("Pedro ha muerto. Fin de la ejecución.")
+        break
 
-print("Dirección después:", pedro.direction)
+    elif action == "NO_SAFE_PATH":
+        print("Pedro no conoce una ruta segura para continuar. Fin de la ejecución.")
+        break
+
+    # Ejecutar la acción elegida por Pedro y actualizar el entorno
+    # Vuelve a comenzar el ciclo
+    environment.execute_action(pedro, action)

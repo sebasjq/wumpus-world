@@ -14,7 +14,7 @@ class Agent:
         self.total_gold = total_gold
 
         self.visited = set() # Conjunto de posiciones visitadas
-        self.safe_cells = {initial_position} # Conjunto de celdas seguras
+        self.safe_cells = {initial_position} # Conjunto de celdas seguras / La posición inicial siempre es segura...
         self.perceptions = {} # Diccionario para almacenar percepciones para cada posición
 
     # Método para recibir percepciones del entorno y actualizar el conocimiento del agente.
