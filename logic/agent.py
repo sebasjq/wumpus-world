@@ -117,6 +117,7 @@ class Agent:
 
     # Método para determinar la acción necesaria para moverse hacia la siguiente posición en el camino.
     # Ya sea girando a la izquierda, girando a la derecha o avanzando hacia adelante, según la orientación actual del agente y la posición objetivo.
+    # NO EJECUTA EL MOVIMIENTO, SOLO DEVUELVE LA ACCIÓN NECESARIA PARA LLEGAR A LA SIGUIENTE CELDA EN EL CAMINO.
     def move_action(self, next_position):
         x, y = self.position
         next_x, next_y = next_position
@@ -134,9 +135,9 @@ class Agent:
         if self.direction == target_direction:
             return "FORWARD"  # Si ya está mirando en la dirección correcta, avanza hacia adelante
 
-        direction_order = ['N', 'E', 'S', 'W']  # Orden de las direcciones para determinar giros
-        current_index = direction_order.index(self.direction) # Obtiene el índice de la dirección actual del agente en la lista de direcciones
-        target_index = direction_order.index(target_direction) # Obtiene el índice de la dirección objetivo en la lista de direcciones
+        directions = ['N', 'E', 'S', 'W']  # Orden de las direcciones para determinar giros
+        current_index = directions.index(self.direction) # Obtiene el índice de la dirección actual del agente en la lista de direcciones
+        target_index = directions.index(target_direction) # Obtiene el índice de la dirección objetivo en la lista de direcciones
 
         difference = (target_index - current_index) % 4 # Calcula la diferencia entre la dirección objetivo y la dirección actual
 
