@@ -17,6 +17,17 @@ class Agent:
         self.safe_cells = {initial_position} # Conjunto de celdas seguras / La posición inicial siempre es segura...
         self.perceptions = {} # Diccionario para almacenar percepciones para cada posición
 
+        # Ampliación del conocimiento del agente
+        self.no_pit_cells = {initial_position} # Conjunto de celdas sin pozos 
+        self.no_wumpus_cells = {initial_position} # Conjunto de celdas sin Wumpus
+
+        # Conjuntos para almacenar posibles y confirmadas posiciones de pozos y Wumpus
+        self.possible_pits = set() 
+        self.confirmed_pits = set()
+
+        self.possible_wumpus = set()
+        self.confirmed_wumpus = set()
+
     # Método para recibir percepciones del entorno y actualizar el conocimiento del agente.
     def perceive(self, perception):
 
@@ -109,11 +120,16 @@ class Agent:
         perception = self.perceptions[self.position] # Obtiene la percepción actual del agente en su posición actual...
         neighbors = self.get_neighbors(self.position) # Obtiene los vecinos de la posición actual del agente...
 
-        if not perception["breeze"] and not perception["stench"]:
+        # Si no hay brisa, los vecinos no tienen pozos
+        if not perception["breeze"]:
+            self.no_pit_cells.update(neighbors) # Agrega los vecinos a las celdas sin pozos...q
+    
+        # Si no hay hedor, los vecinos no tienen Wumpus
+        if not perception["stench"]:
+            self.no_wumpus_cells.update(neighbors) # Agrega los vecinos a las celdas sin Wumpus...
 
-            # Si no hay brisa ni hedor, todas las celdas vecinas son seguras...
-            for neighbor in neighbors:
-                self.safe_cells.add(neighbor) # Agrega las celdas vecinas al conjunto de celdas seguras...
+        # Una casilla es segura si no tiene pozo y no tiene Wumpus
+        self.safe_cells.update(self.no_pit_cells & self.no_wumpus_cells) # Actualiza las celdas seguras como la intersección de las celdas sin pozos y sin Wumpus...
 
     # Método para determinar la acción necesaria para moverse hacia la siguiente posición en el camino.
     # Ya sea girando a la izquierda, girando a la derecha o avanzando hacia adelante, según la orientación actual del agente y la posición objetivo.
