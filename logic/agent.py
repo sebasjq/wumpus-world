@@ -1,3 +1,5 @@
+from logic.search import bfs # Importa la función bfs desde el módulo logic.search para realizar búsquedas en anchura (BFS) en el entorno del agente.
+
 class Agent:
     # Constructor del agente, inicializa la posición, dirección, tamaño del tablero, 
     # estado de vida, oro recolectado y total de oro, celdas visitadas y seguras, y percepciones.
@@ -30,7 +32,6 @@ class Agent:
     # Método para decidir la acción a tomar basado en las percepciones y 
     # el conocimiento del agente / Consulta cúales de las casillas seguras quedan por explorar...
     def decide(self):
-
         # Comprobar primero si el agente completó el objetivo. En ese caso, se detiene...
         if self.collected_gold == self.total_gold:
             return "STOP"
@@ -45,6 +46,8 @@ class Agent:
 
         if not unvisited_safe_cells:
             return "NO_SAFE_PATH" # Si no hay celdas seguras sin visitar, indica que no hay un camino seguro para explorar...
+
+        
   
     # Método para obtener las celdas vecinas de una posición dada.
     def get_neighbors(self, position):
