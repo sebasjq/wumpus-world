@@ -7,17 +7,25 @@ from logic.agent import Agent
 from logic.environment import Environment
 from logic.search import bfs
 
-
+# Ubica la raiz del proyecto para encontrar data/ sin depender
+# de la carpeta actual
 ROOT = Path(__file__).resolve().parents[1]
 
-
+# unittest ejecuta los métodos test_; los assert... 
+# comprueban los resultados esperados.
 class TestLogic(unittest.TestCase):
-
+    
+    # Crea una partida independiente para que las 
+    # pruebas no compartan estado.
     def create_game(self, board=None, filename=None, allow_risk=False):
+
         if filename:
             board_path = ROOT / "data" / filename
         else:
             folder = tempfile.TemporaryDirectory()
+
+            # Elimina los archivos temporales al finalizar, incluso
+            # si la prueba falla
             self.addCleanup(folder.cleanup)
 
             board_path = Path(folder.name) / "board.json"
@@ -38,7 +46,10 @@ class TestLogic(unittest.TestCase):
 
         return environment, agent
 
+    # Construye un tablero pequeño con el oro y los peligros 
+    # necesarios para cada prueba.
     def make_board(self, gold=None, wumpus=None, pits=None):
+
         return {
             "board_size": [4, 4],
             "initial_position": [1, 1],
@@ -48,14 +59,20 @@ class TestLogic(unittest.TestCase):
             "pits": pits if pits is not None else []
         }
 
+    # Entrega la percepción real al agente y actualiza su 
+    # conocimiento.
     def perceive(self, environment, agent):
+
         perception = environment.get_perception(
             agent.position, agent.get_neighbors(agent.position)
         )
         agent.perceive(perception)
         return perception
 
+    # Ejecuta decisiones hasta terminar; el límite evita 
+    # ciclos infinitos en una prueba.
     def run_game(self, environment, agent, limit=1000):
+
         for _ in range(limit):
             if not agent.alive or agent.exited:
                 return
@@ -70,7 +87,10 @@ class TestLogic(unittest.TestCase):
 
         self.fail("La ejecución no terminó dentro del límite.")
 
+    # Comprueba ambos giros, el choque sin movimiento y el reinicio 
+    # del golpe.
     def test_turns_and_wall(self):
+
         environment, agent = self.create_game(self.make_board())
 
         environment.execute_action(agent, "TURN_LEFT")
@@ -89,7 +109,10 @@ class TestLogic(unittest.TestCase):
         environment.execute_action(agent, "TURN_RIGHT")
         self.assertFalse(environment.bump)
 
+    # Comprueba brillo, brisa, hedor y la deducción inicial de 
+    # casillas seguras.
     def test_perceptions_and_initial_safety(self):
+
         environment, agent = self.create_game(
             self.make_board(
                 gold=[[1, 1]],
@@ -114,7 +137,9 @@ class TestLogic(unittest.TestCase):
         )
         self.assertTrue(perception["breeze"])
 
+    # Comprueba que el oro se recoge una sola vez aunque se repita GRAB.
     def test_gold_is_collected_once(self):
+
         environment, agent = self.create_game(
             self.make_board(gold=[[1, 1]])
         )
@@ -132,7 +157,10 @@ class TestLogic(unittest.TestCase):
             )["glitter"]
         )
 
+    # Comprueba muerte por pozo o Wumpus, su penalización y el 
+    # bloqueo posterior.
     def test_death_and_no_actions_after_death(self):
+
         for danger in ("pits", "wumpus"):
             with self.subTest(danger=danger):
                 board = self.make_board()
@@ -151,7 +179,10 @@ class TestLogic(unittest.TestCase):
                 self.assertEqual(agent.action_count, 1)
                 self.assertEqual(agent.score, -1001)
 
+    # Comprueba que el disparo mata, conserva el hedor y 
+    # permite entrar sin morir.
     def test_shot_keeps_stench_and_dead_wumpus_is_safe(self):
+
         environment, agent = self.create_game(
             self.make_board(wumpus=[[2, 1]])
         )
@@ -182,7 +213,10 @@ class TestLogic(unittest.TestCase):
         )
         self.assertTrue(perception["stench"])
 
+    # Comprueba que matar al Wumpus no elimina el pozo de la 
+    # misma casilla.
     def test_pit_is_dangerous_even_with_dead_wumpus(self):
+
         environment, agent = self.create_game(
             self.make_board(wumpus=[[2, 1]], pits=[[2, 1]])
         )
@@ -193,7 +227,10 @@ class TestLogic(unittest.TestCase):
         self.assertFalse(agent.alive)
         self.assertEqual(agent.score, -1012)
 
+    # Comprueba el disparo fallido y que sin flechas no se 
+    # realiza otro disparo.
     def test_failed_shot_and_no_arrows(self):
+
         environment, agent = self.create_game(
             self.make_board(wumpus=[[1, 3]])
         )
@@ -213,7 +250,9 @@ class TestLogic(unittest.TestCase):
         self.assertEqual(agent.score, -12)
         self.assertEqual(environment.dead_wumpus, set())
 
+    # Comprueba que la flecha pasa por un muerto y mata solo al primer Wumpus vivo.
     def test_arrow_passes_dead_wumpus_and_stops_at_first_live_one(self):
+
         environment, agent = self.create_game(
             self.make_board(wumpus=[[2, 1], [3, 1], [4, 1]])
         )
@@ -224,7 +263,10 @@ class TestLogic(unittest.TestCase):
         self.assertIn((3, 1), environment.dead_wumpus)
         self.assertNotIn((4, 1), environment.dead_wumpus)
 
+    # Comprueba que solo se puede salir por la entrada y que 
+    # después no hay acciones.
     def test_exit_only_at_entrance_and_blocks_actions(self):
+
         environment, agent = self.create_game(self.make_board())
 
         environment.execute_action(agent, "FORWARD")
@@ -255,6 +297,8 @@ class TestLogic(unittest.TestCase):
             )
         )
 
+    # Comprueba la ruta más corta, casillas desconectadas 
+    # y un origen no seguro.
     def test_bfs(self):
         agent = Agent((1, 1), 1, (4, 4))
         safe = {(1, 1), (1, 2), (2, 2), (3, 2)}
@@ -278,10 +322,13 @@ class TestLogic(unittest.TestCase):
         with self.assertRaises(ValueError):
             bfs(safe, (4, 4), (1, 1), agent.get_neighbors)
 
+    # Comprueba la opción de riesgo y que excluye los peligros confirmados.
     def test_risk_toggle_and_confirmed_danger_exclusion(self):
+
         environment, agent = self.create_game(
             self.make_board(pits=[[1, 2], [2, 1]])
         )
+
         self.perceive(environment, agent)
 
         self.assertIsNone(agent.risk_action())
@@ -296,7 +343,10 @@ class TestLogic(unittest.TestCase):
         agent.confirmed_pits.add((2, 1))
         self.assertIsNone(agent.risk_action())
 
+    # Comprueba que el grito no identifica al objetivo si pudo haber 
+    # otro Wumpus antes.
     def test_scream_does_not_identify_a_target_behind_uncertainty(self):
+
         agent = Agent((1, 1), 1, (4, 4))
         agent.confirmed_wumpus.add((3, 1))
         agent.last_shot_path = [(2, 1), (3, 1), (4, 1)]
@@ -313,6 +363,7 @@ class TestLogic(unittest.TestCase):
         self.assertNotIn((3, 1), agent.known_dead_wumpus)
         self.assertEqual(agent.last_shot_path, [])
 
+    # Comprueba partidas completas, regreso, oro, disparos y puntuación.
     def test_complete_boards_and_scores(self):
         cases = [
             ("board_4x4.json", 1, 0),
@@ -321,10 +372,14 @@ class TestLogic(unittest.TestCase):
         ]
 
         for filename, expected_gold, expected_shots in cases:
+
+            # Identifica el caso que falla y permite comprobar los demás 
+            # casos del recorrido.
             with self.subTest(board=filename):
                 environment, agent = self.create_game(
                     filename=filename
                 )
+
                 self.run_game(environment, agent)
 
                 self.assertTrue(agent.alive)
@@ -343,6 +398,7 @@ class TestLogic(unittest.TestCase):
                     self.assertIn((1, 3), agent.known_dead_wumpus)
                     self.assertNotIn((1, 3), agent.no_wumpus_cells)
 
+    # Comprueba que cargar un tablero inválido produce un error.
     def test_invalid_boards_are_rejected_on_loading(self):
         invalid_boards = [
             [],
@@ -369,7 +425,9 @@ class TestLogic(unittest.TestCase):
                 with self.assertRaises(ValueError):
                     self.create_game(board=board)
 
+    # Comprueba que una acción desconocida no altera contadores ni puntuación.
     def test_unknown_action_is_rejected_without_changing_score(self):
+
         environment, agent = self.create_game(self.make_board())
 
         with self.assertRaises(ValueError):
@@ -378,6 +436,6 @@ class TestLogic(unittest.TestCase):
         self.assertEqual(agent.action_count, 0)
         self.assertEqual(agent.score, 0)
 
-
+# Inicia las pruebas cuando este archivo se ejecuta directamente.
 if __name__ == "__main__":
     unittest.main()

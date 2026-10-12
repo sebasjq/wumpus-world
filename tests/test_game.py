@@ -4,25 +4,27 @@ from pathlib import Path
 
 from logic.game import Game
 
-
+# Ubica la raíz del proyecto para encontrar data/ sin depender 
+# de la carpeta actual.
 ROOT = Path(__file__).resolve().parents[1]
 
-
+# unittest ejecuta los métodos test_; los assert... comprueban los 
+# resultados esperados.
 class TestGame(unittest.TestCase):
 
-    def create_game(
-        self,
-        filename="board_shoot_test.json",
-        allow_risk=False,
-        arrows=1
-    ):
+    # Crea una partida independiente para que las pruebas 
+    # no compartan estado.
+    def create_game(self, filename="board_shoot_test.json", allow_risk=False, arrows=1):
         return Game(
             ROOT / "data" / filename,
             allow_risk=allow_risk,
             arrows=arrows
         )
 
+    # Avanza mediante Game hasta alcanzar un estado final, 
+    # con un límite de pasos.
     def finish_game(self, game, limit=1500):
+
         for _ in range(limit):
             state = game.step()
 
@@ -31,7 +33,10 @@ class TestGame(unittest.TestCase):
 
         self.fail("La partida no terminó dentro del límite.")
 
+    # Comprueba los datos iniciales y que la respuesta se 
+    # puede enviar como JSON.
     def test_initial_state_and_json(self):
+
         game = self.create_game()
         state = game.get_state()
 
@@ -50,10 +55,14 @@ class TestGame(unittest.TestCase):
         self.assertIn([1, 1], state["knowledge"]["visited"])
 
         # Todos los datos deben poder convertirse en JSON.
+        # Rechaza números especiales que no son válidos en JSON, como NaN o infinito.
         serialized = json.dumps(state, allow_nan=False)
         self.assertEqual(json.loads(serialized), state)
 
+    # Comprueba que consultar varias veces no ejecuta acciones ni 
+    # cambia el juego.
     def test_get_state_does_not_advance(self):
+
         game = self.create_game()
         before = game.get_state()
 
@@ -62,6 +71,8 @@ class TestGame(unittest.TestCase):
 
         self.assertEqual(game.agent.action_count, 0)
 
+    # Comprueba que modificar la respuesta no altera los datos internos 
+    # del juego.
     def test_response_does_not_modify_internal_state(self):
         game = self.create_game()
         original = game.get_state()
@@ -75,7 +86,10 @@ class TestGame(unittest.TestCase):
 
         self.assertEqual(game.get_state(), original)
 
+    # Comprueba que step ejecuta una acción y entrega giro, posición 
+    # y percepción actualizados.
     def test_step_executes_one_action_and_reports_turn(self):
+        
         game = self.create_game()
 
         state = game.step()
@@ -95,6 +109,8 @@ class TestGame(unittest.TestCase):
         # La percepción corresponde a la posición después del avance.
         self.assertTrue(state["perception"]["stench"])
 
+    # Comprueba que la respuesta muestra grito, flechas y 
+    # Wumpus muerto tras disparar.
     def test_shot_reports_scream_ammunition_and_dead_wumpus(self):
         game = self.create_game()
 
@@ -120,7 +136,9 @@ class TestGame(unittest.TestCase):
         # Consultar no borra el grito ni ejecuta otra acción.
         self.assertEqual(game.get_state(), state)
 
+    # Comprueba que GRAB actualiza el oro del agente, del tablero y el brillo.
     def test_gold_collection_is_reflected_in_response(self):
+
         game = self.create_game()
 
         for _ in range(100):
@@ -136,7 +154,9 @@ class TestGame(unittest.TestCase):
         self.assertEqual(state["world"]["gold"], [])
         self.assertFalse(state["perception"]["glitter"])
 
+    # Comprueba la salida exitosa y que avanzar después conserva el resultado final.
     def test_success_and_no_steps_after_finishing(self):
+
         game = self.create_game()
         final_state = self.finish_game(game)
 
@@ -147,13 +167,16 @@ class TestGame(unittest.TestCase):
         self.assertTrue(final_state["agent"]["exited"])
         self.assertEqual(final_state["agent"]["collected_gold"], 1)
         self.assertEqual(final_state["agent"]["remaining_gold"], 0)
+        # Un oro (+1000), 28 acciones (-28) y una flecha (-10).
         self.assertEqual(final_state["agent"]["score"], 962)
         self.assertIsNone(final_state["perception"])
 
         for _ in range(3):
             self.assertEqual(game.step(), final_state)
 
+    # Comprueba la salida viva sin cumplir el objetivo de recoger todo el oro.
     def test_retreat_with_gold_pending(self):
+
         game = self.create_game(filename="board_16x16.json")
         state = self.finish_game(game)
 
@@ -166,7 +189,9 @@ class TestGame(unittest.TestCase):
         self.assertEqual(state["agent"]["score"], -11)
         self.assertEqual(game.step(), state)
 
+    # Comprueba el estado de muerte, su penalización y el bloqueo de pasos posteriores.
     def test_death_and_no_steps_after_death(self):
+
         game = self.create_game(
             filename="board_no_safe_path_test.json",
             allow_risk=True
@@ -184,7 +209,9 @@ class TestGame(unittest.TestCase):
         )
         self.assertEqual(game.step(), state)
 
+    # Comprueba que reset repone el tablero, agente, munición y contadores.
     def test_reset_restores_finished_game(self):
+
         game = self.create_game(arrows=3)
         original = game.get_state()
 
@@ -197,7 +224,9 @@ class TestGame(unittest.TestCase):
         self.assertEqual(reset_state["agent"]["score"], 0)
         self.assertEqual(reset_state["world"]["dead_wumpus"], [])
 
+    # Comprueba que el riesgo cambia en el agente y se conserva al reiniciar.
     def test_risk_changes_and_survives_reset(self):
+
         game = self.create_game()
 
         enabled = game.set_risk(True)
@@ -213,7 +242,9 @@ class TestGame(unittest.TestCase):
         # Cambiar una opción no ejecuta acciones.
         self.assertEqual(game.agent.action_count, 0)
 
+    # Comprueba que sin flechas Pedro no dispara y el Wumpus permanece vivo.
     def test_zero_arrows_disables_shooting(self):
+
         game = self.create_game(arrows=0)
         state = self.finish_game(game)
 
@@ -222,14 +253,20 @@ class TestGame(unittest.TestCase):
         self.assertEqual(state["agent"]["shots_fired"], 0)
         self.assertEqual(state["world"]["live_wumpus"], [[1, 3]])
 
+    # Comprueba el rechazo de opciones inválidas sin alterar una partida existente.
     def test_invalid_options_are_rejected(self):
+
         for arrows in (-1, 0.5, True, "2", None):
+
+            # Identifica el caso que falla y permite comprobar los demás casos del recorrido.
             with self.subTest(arrows=arrows):
                 with self.assertRaises(ValueError):
                     self.create_game(arrows=arrows)
 
         for risk in (0, 1, "True", None):
+            # Identifica el caso que falla y permite comprobar los demás casos del recorrido.
             with self.subTest(risk=risk):
+                # Esta comprobación solo pasa si la operación produce el error esperado.
                 with self.assertRaises(ValueError):
                     self.create_game(allow_risk=risk)
 
@@ -240,7 +277,6 @@ class TestGame(unittest.TestCase):
             game.set_risk("False")
 
         self.assertEqual(game.get_state(), before)
-
 
 if __name__ == "__main__":
     unittest.main()
