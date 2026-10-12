@@ -15,7 +15,8 @@ python -m unittest discover -s tests -p '*.py' -v
 python tests/simulate.py
 ```
 
-`main.py` ejecuta una demostración por consola del tablero 16×16, con una flecha y riesgo desactivado. La vista previa se ejecuta con `python -m interface.app`.
+`main.py` inicia la interfaz gráfica. También puede iniciarse con
+`python -m interface.app`.
 
 ## Organización
 
@@ -23,10 +24,10 @@ python tests/simulate.py
 |---|---|
 | [logic/](logic/README.md) | Reglas del mundo, decisiones, búsqueda y controlador `Game`. |
 | [data/](data/README.md) | Tableros en JSON. |
-| [interface/](interface/README.md) | Escena Pygame estática del borde del mapa; todavía no conecta la lógica. |
+| [interface/](interface/README.md) | Interfaz Pygame completa, navegación y controles del juego. |
 | [tests/](tests/README.md) | Pruebas y simulaciones reproducibles. |
 | [docs/](docs/README.md) | Contrato para la interfaz e informe de revisión. |
-| `main.py` | Actualmente ejecuta el juego por consola; al integrar la interfaz, será el punto de entrada que la inicie y conecte con `Game`. |
+| `main.py` | Inicia la interfaz y conecta sus acciones con `Game`. |
 | `requirements.txt` | Dependencias externas de la vista previa. |
 | `.gitignore` | Evita subir cachés, entornos virtuales y archivos temporales. |
 

@@ -86,25 +86,35 @@ class Game:
                 self.status = "retreated"
 
         else:
-            # Ejecuta una sola acción
-            self.environment.execute_action(
-                self.agent,
-                self.last_action
-            )
-
-            # Actualiza la percepción después de actuar
-            self.update_perception()
-
-            if not self.agent.alive:
-                self.status = "dead"
-
-            elif self.agent.exited:
-                if self.agent.collected_gold == self.agent.total_gold:
-                    self.status = "success"
-                else:
-                    self.status = "retreated"
+            self._execute_action(self.last_action)
 
         return self.get_state()
+
+    def act(self, action):
+        """Ejecuta una acción elegida por la interfaz en modo manual."""
+        if self.status != "running":
+            return self.get_state()
+        if action not in {"TURN_LEFT", "TURN_RIGHT", "FORWARD",
+                          "GRAB", "SHOOT", "CLIMB"}:
+            raise ValueError(f"Acción inválida: {action}")
+
+        self.last_action = action
+        self._execute_action(action)
+        return self.get_state()
+
+    def _execute_action(self, action):
+        """Aplica una acción y traduce el resultado del mundo a un estado."""
+        self.environment.execute_action(self.agent, action)
+        self.update_perception()
+
+        if not self.agent.alive:
+            self.status = "dead"
+        elif self.agent.exited:
+            self.status = (
+                "success"
+                if self.agent.collected_gold == self.agent.total_gold
+                else "retreated"
+            )
 
     # Devuelve el estado actual del juego, incluyendo 
     # la percepción del agente, su conocimiento y el estado del mundo.
