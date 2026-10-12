@@ -38,4 +38,4 @@ La puntuación es `1000 × oro - acciones - 10 × disparos - 1000 si muere`. BFS
 ## Integrantes
 
 - Juan Sebastián Sánchez Quimbaya.
-- Simón Tomás Paipa.
+- Simón Tomás Paipa Bravo.
