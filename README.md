@@ -1,29 +1,41 @@
 # Wumpus World
 
-Proyecto del tercer corte de Inteligencia Artificial de la Universidad Militar Nueva Granada, programa de Ingeniería en Multimedia.
+Proyecto de Inteligencia Artificial de Ingeniería en Multimedia, Universidad Militar Nueva Granada. Pedro explora una cueva, deduce cuáles casillas son seguras, recoge oro y vuelve a la entrada. Puede retirarse si no encuentra cómo continuar o morir al tomar un riesgo.
 
-## Objetivo
+## Ejecución
 
-Desarrollar un agente llamado Pedro que explore el tablero, utilice sus percepciones para identificar casillas seguras y recoja todo el oro evitando hoyos y Wumpus.
+Se usa Python 3.12 en la revisión. La lógica utiliza únicamente la biblioteca estándar; `requirements.txt` está vacío porque aún no requiere paquetes externos.
 
-## Tecnologías
+Desde la raíz del repositorio:
 
-- Python para la lógica del agente y el entorno.
-- HTML, CSS y JavaScript para la interfaz.
+```bash
+python main.py
+python -m unittest discover -s tests -p '*.py' -v
+python tests/simulate.py
+```
+
+`main.py` ejecuta una demostración por consola del tablero 16×16, con una flecha y riesgo desactivado. Todavía usa directamente `Agent` y `Environment`; la futura interfaz debe usar `Game`.
 
 ## Organización
 
-- `logic/`: entorno, conocimiento, agente y búsqueda de rutas.
-- `interface/`: interfaz gráfica.
-- `data/`: configuración del tablero.
-- `tests/`: pruebas de la lógica.
-- `main.py`: punto de entrada de la aplicación.
+| Archivo o carpeta | Función |
+|---|---|
+| [logic/](logic/README.md) | Reglas del mundo, decisiones, búsqueda y controlador `Game`. |
+| [data/](data/README.md) | Tableros en JSON. |
+| [interface/](interface/README.md) | Espacio reservado para HTML, CSS y JavaScript; los archivos están vacíos. |
+| [tests/](tests/README.md) | Pruebas y simulaciones reproducibles. |
+| [docs/](docs/README.md) | Contrato para la interfaz e informe de revisión. |
+| `requirements.txt` | Lista de dependencias externas; actualmente vacía. |
+| `.gitignore` | Evita subir cachés, entornos virtuales y archivos temporales. |
+| `resultado_16x16.txt` | Registro antiguo; no representa el resultado del código actual. |
+
+## Reglas generales
+
+Se utilizan coordenadas `[x, y]` desde 1; el norte aumenta `y`. Pedro percibe brisa, hedor, brillo, golpe y grito. Primero explora casillas seguras; después intenta disparar a Wumpus confirmados y, si está permitido, entrar a casillas inciertas. Finalmente regresa y sale por la entrada.
+
+La puntuación es `1000 × oro - acciones - 10 × disparos - 1000 si muere`. BFS busca rutas con menos desplazamientos entre casillas conocidas, sin incluir el costo de los giros en la búsqueda.
 
 ## Integrantes
 
-- Juan Sebastián Sánchez Quimbaya
-- Simón Tomás Paipa
-
-## Estado
-
-En desarrollo.
+- Juan Sebastián Sánchez Quimbaya.
+- Simón Tomás Paipa.
