@@ -1,0 +1,1 @@
+"""Board and entity rendering."""
