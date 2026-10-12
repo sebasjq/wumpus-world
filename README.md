@@ -25,9 +25,9 @@ python tests/simulate.py
 | [interface/](interface/README.md) | Espacio reservado para HTML, CSS y JavaScript; los archivos están vacíos. |
 | [tests/](tests/README.md) | Pruebas y simulaciones reproducibles. |
 | [docs/](docs/README.md) | Contrato para la interfaz e informe de revisión. |
+| `main.py` | Actualmente ejecuta el juego por consola; al integrar la interfaz, será el punto de entrada que la inicie y conecte con `Game`. |
 | `requirements.txt` | Lista de dependencias externas; actualmente vacía. |
 | `.gitignore` | Evita subir cachés, entornos virtuales y archivos temporales. |
-| `resultado_16x16.txt` | Registro antiguo; no representa el resultado del código actual. |
 
 ## Reglas generales
 
