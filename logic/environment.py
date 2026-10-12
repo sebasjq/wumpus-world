@@ -25,6 +25,8 @@ class Environment:
 
         self.total_gold = len(self.gold)  # Total de oro en el tablero
 
+        self.dead_wumpus = set()  # Conjunto de posiciones de Wumpus muertos (inicialmente vacío)
+
     # Método para obtener las percepciones del agente en una posición dada de acuerdo al entorno,
     # considerando las celdas vecinas y la presencia de oro, Wumpus y pozos.
     def get_perception(self, position, neighbors):
@@ -43,7 +45,8 @@ class Environment:
             "scream": self.scream
         }
 
-    # Método para ejecutar una acción del agente y actualizar el estado del entorno en consecuencia.
+    # Método para ejecutar una acción del agente y actualizar el estado 
+    # del entorno en consecuencia.
     def execute_action(self, agent, action):
 
         if not agent.alive:
@@ -84,8 +87,16 @@ class Environment:
 
             agent.position = next_position  # Actualiza la posición del agente si no choca
 
-            if next_position in self.pits or next_position in self.wumpus:
-                agent.alive = False # Muere por caer en un hoyo o entrar donde hay un Wumpus
+            if (
+                next_position in self.pits 
+                or (
+                    next_position in self.wumpus
+                    and next_position not in self.dead_wumpus
+                )
+            ):
+                # Ahora Pedro muere si cae en un pozo, aunque tambien haya un Wumpus 
+                # muerto, o si cae en un Wumpus vivo
+                agent.alive = False
 
         elif action == "GRAB":
             if agent.position in self.gold:
@@ -118,10 +129,10 @@ class Environment:
 
                 arrow_position = (x, y)
 
-                if arrow_position in self.wumpus:
-                    self.wumpus.remove(arrow_position)  # Elimina al Wumpus de la celda
+                if (arrow_position in self.wumpus and arrow_position not in self.dead_wumpus):  # Si la flecha alcanza al Wumpus y este no está muerto
+                    self.dead_wumpus.add(arrow_position)  # Marca al Wumpus como muerto
                     self.scream = True  # Indica que el Wumpus ha sido asesinado
-                    break  # La flecha se detiene después de matar al Wumpus
+                    break  # La flecha se detiene después de matar un Wumpus vivo
 
                 x = x + dx
                 y = y + dy

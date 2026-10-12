@@ -5,7 +5,7 @@ from logic.agent import Agent
 board_path = (
     Path(__file__).resolve().parent 
     / "data" 
-    / "board_16x16.json")
+    / "board_shoot_test.json")
 
 environment = Environment(board_path)
 

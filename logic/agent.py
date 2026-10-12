@@ -34,28 +34,39 @@ class Agent:
         self.possible_wumpus = set()
         self.confirmed_wumpus = set()
 
+        self.known_dead_wumpus = set() # Wumpus que Pedro sabe que murieron
+        self.possible_dead_cells = set() # Celdas que podrían tener un Wumpus muerto, pero no se sabe con certeza
+        self.last_shot_path = [] # Casillar recorridas por el ultimo disparo, en orden
+
     # Método para recibir percepciones del entorno y actualizar el conocimiento del agente.
     def perceive(self, perception):
 
         if not self.alive:
             return  # Si el agente no está vivo, no puede percibir nada
 
-        if perception["scream"]:
+        if perception["scream"] and self.last_shot_path:
+            self.possible_dead_cells.update(self.last_shot_path)  # Actualiza las celdas que podrían tener un Wumpus muerto
 
-            # Los hedores anteriores deben volver a comprobarse, 
-            # ya que el Wumpus ha sido asesinado y las celdas vecinas 
-            # ya no deberían tener hedor.
+            # Conserva el orden de las casillas en la trayectoria de la flecha
+            candidates = [
+                cell
+                for cell in self.last_shot_path
+                if cell not in self.no_wumpus_cells
+                and cell not in self.known_dead_wumpus
+            ]
 
-            for previous_perception in self.perceptions.values(): # Valores sin las posiciones, solo las percepciones almacenadas en el diccionario de percepciones del agente...
-                if previous_perception["stench"] is True:
+            if candidates:
+                first_candidate = candidates[0]  
 
-                    # Al morir un Wumpus, los hedores anteriores podrían haber cambiado.
-                    # # Deben comprobarse nuevamente porque puede haber otros Wumpus cerca.
-                    previous_perception["stench"] = None
+                # Si el primer candidato es un Wumpus confirmado,
+                # la flecha lo alcanzó antes de cualquier otro.
+                # Si solo hay un candidato, el grito identifica su posición
 
-            # Se eliminan los posibles y confirmados Wumpus, ya que el Wumpus ha sido asesinado
-            self.possible_wumpus.clear()
-            self.confirmed_wumpus.clear() 
+                if (first_candidate in self.confirmed_wumpus or len(candidates) == 1):
+                    self.known_dead_wumpus.add(first_candidate)  # Marca al Wumpus como muerto
+
+        # La respuesta al ultimo disparo ya fue recibida
+        self.last_shot_path = []  # Reinicia la trayectoria de la flecha después de recibir la respuesta del entorno
 
         # Guarda lo que recibe del entorno...
         self.visited.add(self.position) # Marca la posición actual como visitada...
@@ -161,38 +172,37 @@ class Agent:
         if not self.alive:
             return  # Si el agente no está vivo, no se puede actualizar el conocimiento
 
-        # Agrega las celdas visitadas a las celdas sin pozos y sin Wumpus, 
-        # ya que al estar en ellas y no haber muerto, se deduce que son seguras.
-        self.no_pit_cells.update(self.visited) 
-        self.no_wumpus_cells.update(self.visited)
+        # Sobrevivir demuestra que no hay pozo
+        self.no_pit_cells.update(self.visited)
+
+        # Una visita descarta los Wumpus, excepto donde pudo querdar uno muerto. 
+        self.no_wumpus_cells.update(self.visited - self.possible_dead_cells)
 
         # Primero reúne la información que descarta los peligros
         for position, perception in self.perceptions.items(): # Itera sobre las percepciones almacenadas para cada posición visitada por el agente...
-            neighbors = self.get_neighbors(position) # Obtiene los vecinos de la posición visitada por el agente...
+            neighbors = set(self.get_neighbors(position)) # Obtiene los vecinos de la posición visitada por el agente...
 
             # Si no hay brisa, los vecinos no tienen pozos
             if not perception["breeze"]:
-                self.no_pit_cells.update(neighbors) # Agrega los vecinos a las celdas sin pozos...
+                self.no_pit_cells.update(neighbors)
 
-            # Si no hay hedor, los vecinos no tienen Wumpus
-            if perception["stench"] is False: # Se verifica que la percepción de hedor no sea None, ya que None indica que el Wumpus ha sido asesinado y no se puede deducir información sobre los vecinos...
-                self.no_wumpus_cells.update(neighbors) # Agrega los vecinos a las celdas sin Wumpus...
-        
-        # Combinación: Una casilla es segura si no tiene pozo y no tiene Wumpus
-        self.safe_cells.update(self.no_pit_cells & self.no_wumpus_cells) 
+            # Los muertos tambien huelen:
+            # sin hedor, no hay Wumpus vivo ni muerto cerca.
+            if perception["stench"] is False:
+                # Si no hay hedor, los vecinos no tienen Wumpus vivos ni muertos
+                self.no_wumpus_cells.update(neighbors | {position})
 
-
-        # Recalculación de los candidatos posibles a pozos y wumpus
-        # usando toda la información disponible, incluyendo las percepciones de brisa y hedor.
 
         # Limpieza de los conjuntos de posibles pozos y Wumpus antes de recalcularlos
         self.possible_pits.clear() 
         self.possible_wumpus.clear()
 
+        # Una muerte identificada tambien confirma su ubicacion
+        self.confirmed_wumpus.update(self.known_dead_wumpus) # Actualiza el conjunto de Wumpus confirmados con los Wumpus que el agente sabe que están muertos...
+
+
         for position, perception in self.perceptions.items():
 
-            # Como neighbors es una lista, la convertimos en 
-            # un conjunto para operaciones de conjuntos
             neighbors = set(self.get_neighbors(position))
 
             if perception["breeze"]:
@@ -205,18 +215,33 @@ class Agent:
                     self.confirmed_pits.update(candidates) # Confirma la posición como pozo
 
             if perception["stench"] is True:
-                candidates = neighbors - self.no_wumpus_cells # Vecinos que podrían tener Wumpus
 
+                # El hedor tambien puede proceder de la propia casilla
+                candidates = (
+                    neighbors | {position} # Incluye la posición actual como posible fuente de hedor
+                ) - self.no_wumpus_cells # Elimina los vecinos que se sabe que no tienen Wumpus vivos ni muertos
+                
                 self.possible_wumpus.update(candidates) # Agrega los candidatos a posibles Wumpus
 
                 # Si queda un solo candidato, lo confirmamos como Wumpus
                 if len(candidates) == 1:
                     self.confirmed_wumpus.update(candidates) # Confirma la posición como Wumpus
 
+        # Si visitó una ubicación confirmada y sobrevivio,
+        # el wumpus de esa casilla esta muerto
+        self.known_dead_wumpus.update(self.confirmed_wumpus & self.visited)
+
         # Elimina los pozos y Wumpus confirmados de los posibles 
         # para mantener la consistencia del conocimiento del agente
         self.possible_pits -= self.confirmed_pits # Elimina los pozos confirmados de los posibles pozos
         self.possible_wumpus -= self.confirmed_wumpus # Elimina los Wumpus confirmados de los posibles Wumpus
+
+        # Las visitadas son seguras porque Pedro sobrevivió
+        self.safe_cells.update(self.visited) # Actualiza el conjunto de celdas seguras con las posiciones visitadas por el agente...
+
+        # También son seguras las casillas sin pozo donde no hay wumpus o se sabe que 
+        # está muerto
+        self.safe_cells.update(self.no_pit_cells & (self.no_wumpus_cells | self.known_dead_wumpus))
 
     # Método para determinar la acción necesaria para moverse hacia la siguiente posición en el camino.
     # Ya sea girando a la izquierda, girando a la derecha o avanzando hacia adelante, según la orientación actual del agente y la posición objetivo.
@@ -256,7 +281,9 @@ class Agent:
     # LLEGAR A LA CELDA DESDE DONDE DISPARAR O PARA DISPARAR SI YA ESTÁ EN POSICIÓN.
     def shoot_action(self):
 
-        if self.arrows <= 0 or not self.confirmed_wumpus:
+        live_targets = self.confirmed_wumpus - self.known_dead_wumpus # Conjunto de Wumpus confirmados que aún están vivos...
+
+        if self.arrows <= 0 or not live_targets:  # Si no hay flechas disponibles o no hay Wumpus confirmado para disparar...
             return None # No hay flechas disponibles o no hay Wumpus confirmado para disparar...
 
         best_path = None
@@ -264,7 +291,7 @@ class Agent:
         best_distance = float('inf') # Inicializa la mejor distancia como infinito para encontrar la mínima...
 
         # Busca una casilla segura desde donde apuntar a un Wumpus confirmado...
-        for target in sorted(self.confirmed_wumpus):
+        for target in sorted(live_targets):
             target_x, target_y = target
 
             for shooting_position in sorted(self.safe_cells):
@@ -313,10 +340,39 @@ class Agent:
             target_direction = 'S'  # Sur / Abajo
 
         if self.direction == target_direction:
+            self.last_shot_path = self.get_shot_path() # Guarda el camino que recorrería la flecha disparada por el agente
             return "SHOOT"  # Si ya está mirando en la dirección correcta, dispara
 
         # Si no está mirando en la dirección correcta, gira hacia la dirección objetivo
         return self.move_action(best_target) # Llama al método move_action para determinar la acción necesaria para girar hacia la dirección objetivo antes de disparar...
+
+    # Método para obtener el camino que recorrería la flecha disparada 
+    # por el agente,
+    def get_shot_path(self):
+        movements = {
+            'N': (0, 1),  # Movimiento hacia el norte / arriba
+            'E': (1, 0),  # Movimiento hacia el este / derecha
+            'S': (0, -1), # Movimiento hacia el sur / abajo
+            'W': (-1, 0)  # Movimiento hacia el oeste / izquierda
+        }
+
+        x, y = self.position
+        dx, dy = movements[self.direction]
+        width, height = self.board_size
+
+        path = []
+
+        # Comienza en la casilla delante de Pedro
+        x = x + dx
+        y = y + dy
+
+        while 1 <= x <= width and 1 <= y <= height:  # Mientras la flecha esté dentro del tablero
+            path.append((x, y))  # Agrega la posición actual al camino de la flecha
+
+            x = x + dx
+            y = y + dy
+
+        return path
 
     # Método para decidir si tomar un riesgo y moverse hacia una celda incierta, 
     # buscando una celda segura desde donde entrar a la incierta y determinando la 
@@ -331,7 +387,10 @@ class Agent:
         best_target = None
         best_distance = float('inf') 
 
-        confirmed_dangers = self.confirmed_pits | self.confirmed_wumpus # Combina los conjuntos de pozos y Wumpus confirmados para obtener un conjunto de peligros confirmados...
+        # Combina los conjuntos de pozos y Wumpus confirmados para obtener 
+        # un conjunto de peligros confirmados...
+        confirmed_dangers = (
+            self.confirmed_pits | (self.confirmed_wumpus - self.known_dead_wumpus))
 
         # Busca una casilla segura desde donde entrar a una incierta
         # departure es la casilla segura desde la que Pedro dará el último paso
