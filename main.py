@@ -5,7 +5,7 @@ from logic.agent import Agent
 board_path = (
     Path(__file__).resolve().parent 
     / "data" 
-    / "board_shoot_test.json")
+    / "board_16x16.json")
 
 environment = Environment(board_path)
 
@@ -19,7 +19,7 @@ pedro = Agent(
 )
 
 while True:
-    
+
     # Percibir y actualizar el conocimiento
     if pedro.alive and not pedro.exited:
         neighbors = pedro.get_neighbors(pedro.position)

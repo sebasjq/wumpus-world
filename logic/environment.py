@@ -11,8 +11,10 @@ class Environment:
         # la dirección inicial, las posiciones de oro, Wumpus y pozos.
         with open(board_path, "r", encoding="utf-8") as file:
             board = json.load(file)
-
+        
+        self.validate_board(board)  # Valida la estructura y los valores del tablero cargado
         self.board_size = tuple(board["board_size"])  # Tamaño del tablero (ancho, alto)
+
         self.initial_position = tuple(board["initial_position"])  # Posición inicial del agente
         self.initial_direction = board["direction"]  # Dirección inicial del agente
 
@@ -154,3 +156,86 @@ class Environment:
         elif action == "CLIMB":
             if agent.position == self.initial_position:
                 agent.exited = True  # Indica que el agente ha salido del tablero
+
+    def validate_board(self, board):
+        if not isinstance(board, dict):
+            raise ValueError("El tablero debe ser un objeto JSON.")
+
+        required_fields = {
+            "board_size", "initial_position",
+            "direction", "gold", "wumpus", "pits"
+        }
+
+        missing_fields = required_fields - board.keys()
+
+        if missing_fields:
+            raise ValueError(
+                f"Faltan campos: {', '.join(sorted(missing_fields))}"
+            )
+
+        # Tamaño: dos enteros positivos
+        size = board["board_size"]
+
+        if (
+            not isinstance(size, list)
+            or len(size) != 2
+            or any(type(value) is not int or value <= 0 for value in size)
+        ):
+            raise ValueError(
+                "board_size debe contener dos enteros positivos."
+            )
+
+        width, height = size
+
+        if board["direction"] not in ("N", "E", "S", "W"):
+            raise ValueError("direction debe ser N, E, S o W.")
+
+        # Comprueba el formato y los límites de una coordenada
+        def validate_position(position, field):
+            if (
+                not isinstance(position, list)
+                or len(position) != 2
+                or any(type(value) is not int for value in position)
+            ):
+                raise ValueError(
+                    f"{field}: cada posición debe contener dos enteros."
+                )
+
+            x, y = position
+
+            if not (1 <= x <= width and 1 <= y <= height):
+                raise ValueError(
+                    f"{field}: la posición {position} está fuera del tablero."
+                )
+
+        validate_position(board["initial_position"], "initial_position")
+
+        for field in ("gold", "wumpus", "pits"):
+            positions = board[field]
+
+            if not isinstance(positions, list):
+                raise ValueError(f"{field} debe ser una lista de posiciones.")
+
+            seen = set()
+
+            for position in positions:
+                validate_position(position, field)
+                cell = tuple(position)
+
+                if cell in seen:
+                    raise ValueError(
+                        f"{field}: la posición {position} está repetida."
+                    )
+
+                seen.add(cell)
+
+        # El agente comienza en una casilla segura
+        initial_position = board["initial_position"]
+
+        if (
+            initial_position in board["pits"]
+            or initial_position in board["wumpus"]
+        ):
+            raise ValueError(
+                "La posición inicial no puede contener pozos ni Wumpus."
+            )
