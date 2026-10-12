@@ -49,11 +49,21 @@ class Environment:
     # del entorno en consecuencia.
     def execute_action(self, agent, action):
 
-        if not agent.alive:
-            return  # Si el agente no está vivo, no se puede ejecutar ninguna acción
+         # Si el agente no está vivo o ha salido del 
+         # tablero, no puede ejecutar acciones...
+        if not agent.alive or agent.exited:
+            return  
 
+        valid_actions = ["TURN_LEFT", "TURN_RIGHT", "FORWARD", "GRAB", "SHOOT", "CLIMB"]
+
+        if action not in valid_actions:
+            raise ValueError(f"Invalid action: {action}")
+        
         self.bump = False  # Reinicia el golpe para la nueva acción.
         self.scream = False  # Reinicia el grito para la nueva acción.
+
+        agent.action_count += 1  # Incrementa el contador de acciones del agente
+        agent.score -= 1  # Penaliza al agente por cada acción realizada
 
         directions = ['N', 'E', 'S', 'W']  # Lista de direcciones en orden horario
 
@@ -66,7 +76,7 @@ class Environment:
             agent.direction = directions[(index + 1) % 4]  # Gira a la derecha (sentido horario)
 
         elif action == "FORWARD":
-
+            
             movements = {
                 'N': (0, 1),  # Movimiento hacia el norte / arriba
                 'E': (1, 0),  # Movimiento hacia el este / derecha
@@ -97,11 +107,13 @@ class Environment:
                 # Ahora Pedro muere si cae en un pozo, aunque tambien haya un Wumpus 
                 # muerto, o si cae en un Wumpus vivo
                 agent.alive = False
+                agent.score -= 1000 # Penalizacion por morir
 
         elif action == "GRAB":
             if agent.position in self.gold:
                 self.gold.remove(agent.position)  # Elimina el oro de la celda
                 agent.collected_gold += 1  # Incrementa el contador de oro recolectado del agente
+                agent.score += 1000  # Recompensa por recolectar oro
 
         elif action == "SHOOT":
 
@@ -109,6 +121,8 @@ class Environment:
                 return  # No hay flechas para disparar
 
             agent.arrows -= 1  # Disminuye el número de flechas del agente
+            agent.shots_fired += 1  # Incrementa el contador de disparos realizados por el agente
+            agent.score -= 10  # Penaliza al agente por disparar una flecha
 
             movements = {
                 'N': (0, 1),  # Movimiento hacia el norte / arriba
@@ -136,3 +150,7 @@ class Environment:
 
                 x = x + dx
                 y = y + dy
+
+        elif action == "CLIMB":
+            if agent.position == self.initial_position:
+                agent.exited = True  # Indica que el agente ha salido del tablero

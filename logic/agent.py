@@ -38,10 +38,16 @@ class Agent:
         self.possible_dead_cells = set() # Celdas que podrían tener un Wumpus muerto, pero no se sabe con certeza
         self.last_shot_path = [] # Casillar recorridas por el ultimo disparo, en orden
 
+        # Variables para el seguimiento del estado del agente y su desempeño
+        self.exited = False # Indica si el agente ha salido del tablero (subido por la entrada)
+        self.action_count = 0 # Contador de acciones ejecutadas por el agente
+        self.shots_fired = 0 # Contador de disparos realizados por el agente
+        self.score = 0 # Puntuación del agente, que se actualiza según las acciones realizadas y los eventos ocurridos en el entorno
+
     # Método para recibir percepciones del entorno y actualizar el conocimiento del agente.
     def perceive(self, perception):
 
-        if not self.alive:
+        if not self.alive or self.exited:
             return  # Si el agente no está vivo, no puede percibir nada
 
         if perception["scream"] and self.last_shot_path:
@@ -83,6 +89,9 @@ class Agent:
 
         if not self.alive: # Si el agente no está vivo, no puede tomar decisiones...
             return "DEAD"
+
+        if self.exited:
+            return "EXITED"  # Si el agente ha salido del tablero, no puede tomar decisiones...
 
         if self.returning_home or self.collected_gold == self.total_gold: # Si el agente ha recolectado todo el oro, no necesita seguir buscando...
             return self.return_action()
