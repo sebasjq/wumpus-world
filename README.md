@@ -4,7 +4,8 @@ Proyecto de Inteligencia Artificial de Ingeniería en Multimedia, Universidad Mi
 
 ## Ejecución
 
-Se usa Python 3.12 en la revisión. La lógica utiliza únicamente la biblioteca estándar; `requirements.txt` está vacío porque aún no requiere paquetes externos.
+Se usa Python 3.12 en la revisión. La lógica utiliza únicamente la biblioteca
+estándar; la vista previa usa Pygame-CE.
 
 Desde la raíz del repositorio:
 
@@ -14,7 +15,7 @@ python -m unittest discover -s tests -p '*.py' -v
 python tests/simulate.py
 ```
 
-`main.py` ejecuta una demostración por consola del tablero 16×16, con una flecha y riesgo desactivado. Todavía usa directamente `Agent` y `Environment`; la futura interfaz debe usar `Game`.
+`main.py` ejecuta una demostración por consola del tablero 16×16, con una flecha y riesgo desactivado. La vista previa se ejecuta con `python -m interface.app`.
 
 ## Organización
 
@@ -22,11 +23,11 @@ python tests/simulate.py
 |---|---|
 | [logic/](logic/README.md) | Reglas del mundo, decisiones, búsqueda y controlador `Game`. |
 | [data/](data/README.md) | Tableros en JSON. |
-| [interface/](interface/README.md) | Espacio reservado para HTML, CSS y JavaScript; los archivos están vacíos. |
+| [interface/](interface/README.md) | Escena Pygame estática del borde del mapa; todavía no conecta la lógica. |
 | [tests/](tests/README.md) | Pruebas y simulaciones reproducibles. |
 | [docs/](docs/README.md) | Contrato para la interfaz e informe de revisión. |
 | `main.py` | Actualmente ejecuta el juego por consola; al integrar la interfaz, será el punto de entrada que la inicie y conecte con `Game`. |
-| `requirements.txt` | Lista de dependencias externas; actualmente vacía. |
+| `requirements.txt` | Dependencias externas de la vista previa. |
 | `.gitignore` | Evita subir cachés, entornos virtuales y archivos temporales. |
 
 ## Reglas generales
