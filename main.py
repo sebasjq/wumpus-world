@@ -20,54 +20,63 @@ pedro = Agent(
 
 while True:
 
-    # Obtener las casillas vecinas de la posición actual del agente
-    neighbors = pedro.get_neighbors(pedro.position)
+    # Percibir y actualizar el conocimiento
+    if pedro.alive and not pedro.exited:
+        neighbors = pedro.get_neighbors(pedro.position)
+        perception = environment.get_perception(pedro.position, neighbors)
+        pedro.perceive(perception)
 
-    # Obtener las percepciones del entorno para la posición actual del agente
-    # y actualiza el conocimiento de Pedro
-    perception = environment.get_perception(pedro.position, neighbors)
-    pedro.perceive(perception)
+        print(
+            f"\nPosición: {pedro.position} | "
+            f"Dirección: {pedro.direction}"
+        )
+        print("Percepción:", perception)
 
-    print("Hoyos posibles:", sorted(pedro.possible_pits))
-    print("Hoyos confirmados:", sorted(pedro.confirmed_pits))
-    print("Wumpus posibles:", sorted(pedro.possible_wumpus))
-    print("Wumpus confirmados:", sorted(pedro.confirmed_wumpus))
-
-    # Decidir qué hacer usando su conocimiento
+    # Elegir la siguiente acción
     action = pedro.decide()
+    print("Acción:", action)
 
-
-    print("Posición actual:", pedro.position)
-    print("Dirección:", pedro.direction)
-    print("Percepción:", perception)
-    print("Acción elegida:", action)
-    print("Flechas restantes:", pedro.arrows)
-    print()
-
-    # Comprobar si la ejecución debe terminar
-    if action == "CLIMB":
-        if pedro.collected_gold == pedro.total_gold:
-            print("Pedro ha regresado a la entrada y ha salido con todo el oro. Fin de la ejecución.")
-        else:
-            print("Pedro se ha retirado con oro pendiente.")
-            print("Oro recolectado:", pedro.collected_gold)
-
+    # Estos estados no son acciones del entorno
+    if action == "DEAD":
+        print("Pedro ha muerto.")
         break
 
-    elif action == "DEAD":
-        print("Pedro ha muerto. Fin de la ejecución.")
+    if action == "NO_SAFE_PATH":
+        print("Pedro no encuentra una ruta segura de regreso.")
         break
 
-    elif action == "NO_SAFE_PATH":
-        print("Pedro no conoce una ruta segura para continuar. Fin de la ejecución.")
+    if action == "EXITED":
+        print("Pedro ya ha salido de la cueva.")
         break
 
-    # Ejecutar la acción elegida por Pedro y actualizar el entorno
-    # Vuelve a comenzar el ciclo
+    # Ejecutar una sola vez y mostrar el resultado
     environment.execute_action(pedro, action)
 
+    print(
+        f"Flechas: {pedro.arrows} | "
+        f"Oro: {pedro.collected_gold}/{pedro.total_gold} | "
+        f"Puntuación: {pedro.score}"
+    )
 
-print("Oro recolectado:", pedro.collected_gold)
+    if pedro.exited:
+        if pedro.collected_gold == pedro.total_gold:
+            print("Pedro ha salido con todo el oro.")
+        else:
+            print("Pedro se ha retirado con oro pendiente.")
+        break
+
+    if not pedro.alive:
+        print(f"Pedro ha muerto en {pedro.position}.")
+        break
+
+# Resumen final
+print("\nResultado final")
+print("Posición:", pedro.position)
+print(f"Oro recolectado: {pedro.collected_gold}/{pedro.total_gold}")
 print("Oro pendiente:", pedro.total_gold - pedro.collected_gold)
 print("¿Pedro sigue vivo?:", pedro.alive)
+print("¿Pedro salió?:", pedro.exited)
 print("Flechas restantes:", pedro.arrows)
+print("Acciones ejecutadas:", pedro.action_count)
+print("Disparos realizados:", pedro.shots_fired)
+print("Puntuación:", pedro.score)
