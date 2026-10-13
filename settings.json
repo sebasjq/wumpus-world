@@ -1,9 +1,9 @@
 {
   "speed": 1,
-  "fullscreen": false,
+  "fullscreen": true,
   "notes": true,
   "coords": true,
-  "music": true,
+  "music": false,
   "effects": true,
   "sound": true
 }

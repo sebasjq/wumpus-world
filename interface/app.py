@@ -15,7 +15,7 @@ Recursos opcionales:
     assets/fonts/Nunito-Regular.ttf         texto corrido
     assets/fonts/Nunito-Bold.ttf            texto corrido en negrita
     assets/icons/<nombre>.png               iconos PNG de la interfaz
-    assets/sprites/<nombre>.png             explorer_N/E/S/W, wumpus, gold, pit, chest
+    assets/icons/explorer_N/E/S/W.png       sprites direccionales del explorador
 
 Requiere pygame >= 2.0.
 """
@@ -88,6 +88,13 @@ SENSES = [
     ("bump", "Golpe", "bump", (255, 150, 110)),
     ("scream", "Grito", "scream", (200, 155, 255)),
 ]
+PERCEPTION_SOUNDS = {
+    "breeze": "breeze",
+    "stench": "wumpus_growl",
+    "glitter": "glitter",
+    "bump": "bump",
+    "scream": "scream",
+}
 DIR_NAMES = {"N": "Norte", "E": "Este", "S": "Sur", "W": "Oeste"}
 DIR_VEC = {"N": (0, -1), "E": (1, 0), "S": (0, 1), "W": (-1, 0)}
 DEATH_WORDS = ("dead", "death", "die", "lost", "fail", "wumpus", "pit", "muer", "perd",
@@ -266,16 +273,24 @@ def _fit(img, size):
 def icon(name, size, color=None):
     """Carga un icono PNG y lo adapta a un cuadrado de ``size`` px."""
     size = max(4, int(size))
+    interface_icons = {
+        "arrow": "Flecha_icon.png",
+        "gold": "Oro_icon.png",
+        "pit": "Pozo_icon.png",
+        "wumpus": "Wumpus_icon.png",
+        "chest": "Cofre_icon.png",
+        "heart": "Corazon_icon.png",
+    }
     help_icons = {
         "help_arrow": "Flecha_icon.png",
         "help_gold": "Oro_icon.png",
         "help_pit": "Pozo_icon.png",
         "help_wumpus": "Wumpus_icon.png",
     }
-    if name in help_icons:
+    if name in interface_icons:
+        path = HERE / interface_icons[name]
+    elif name in help_icons:
         path = HERE / help_icons[name]
-    elif name == "wumpus":
-        path = HERE / "Logo.png"
     else:
         asset_name = name[5:] if name.startswith("menu_") else name
         asset_name = {"settings": "gear"}.get(asset_name, asset_name)
@@ -291,7 +306,7 @@ def icon(name, size, color=None):
     if not path.exists():
         raise FileNotFoundError(f"No existe el icono requerido: {path}")
     img = pygame.image.load(str(path)).convert_alpha()
-    if name not in help_icons and name != "wumpus":
+    if name not in interface_icons and name not in help_icons:
         img.fill(color or TEXT, special_flags=pygame.BLEND_RGB_MAX)
     return _fit(img, size)
 
@@ -402,11 +417,33 @@ class SoundManager:
     """Gestiona efectos sintetizados y música opcional de la interfaz."""
 
     SAMPLE_RATE = 44100
+    MUSIC_FADE_MS = 700
     MUSIC_FILES = {
-        "pregame": ("Fondo1.mp3",),
+        "pregame": ("Fondo1.mp3", "Fondo2.mp3"),
         "game": ("Partida.mp3",),
     }
-    CLICK_FILE = "Botón.mp3"
+    MUSIC_VOLUMES = {
+        "pregame": 0.65,
+        "game": 0.35,
+    }
+    SOUND_FILES = {
+        "click": "Botón.mp3",
+        "turn": "Turn.mp3",
+        "move": "Move.mp3",
+        "gold": "Gold.mp3",
+        "shoot": "Shoot.mp3",
+        "arrow_hit": "Arrow_hit.mp3",
+        "pit_fall": "Pit_fall.mp3",
+        "wumpus_growl": "Wumpus_growl.mp3",
+        "wumpus_death": "Wumpus_death.mp3",
+        "breeze": "Breeze.mp3",
+        "stench": "Stench.mp3",
+        "glitter": "Gold.mp3",
+        "scream": "Scream.mp3",
+        "bump": "Bump.mp3",
+        "win": "Win.mp3",
+        "lose": "Lose.mp3",
+    }
 
     def __init__(self, music_enabled=True, effects_enabled=True):
         self.music_enabled = music_enabled
@@ -414,24 +451,33 @@ class SoundManager:
         self.sounds = {}
         self.music_mode = None
         self.music_index = -1
+        self.pending_music_mode = None
         self.mixer_ready = False
         try:
             if not pygame.mixer.get_init():
                 pygame.mixer.init(frequency=self.SAMPLE_RATE, size=-16, channels=1)
             self.mixer_ready = True
-            self.sounds = {
-                "click": self._load_sound(self.CLICK_FILE) or self._tone(920, 1120, .065),
+            fallback = {
+                "click": self._tone(920, 1120, .065),
                 "turn": self._tone(230, 180, .09),
                 "move": self._tone(180, 280, .11),
                 "gold": self._tone(520, 1040, .22),
                 "shoot": self._tone(640, 120, .28),
+                "arrow_hit": self._tone(180, 90, .18),
+                "pit_fall": self._tone(240, 45, .7),
+                "wumpus_growl": self._tone(115, 55, .65, harmonics=3),
+                "wumpus_death": self._tone(420, 120, .5, harmonics=4),
                 "breeze": self._tone(300, 520, .32, harmonics=2),
                 "stench": self._tone(115, 75, .4, harmonics=3),
                 "glitter": self._tone(880, 1320, .18),
-                "bump": self._tone(90, 55, .16, harmonics=3),
                 "scream": self._tone(420, 120, .5, harmonics=4),
+                "bump": self._tone(90, 55, .16, harmonics=3),
                 "win": self._tone(660, 1320, .5, harmonics=2),
                 "lose": self._tone(180, 60, .55, harmonics=3),
+            }
+            self.sounds = {
+                name: self._load_sound(filename) or fallback[name]
+                for name, filename in self.SOUND_FILES.items()
             }
         except pygame.error:
             self.sounds = {}
@@ -452,9 +498,17 @@ class SoundManager:
         return path if path.exists() else None
 
     def play_music(self, mode):
-        """Inicia la música del menú o de la partida, repitiéndola si hace falta."""
+        """Cambia la música con fundido y volumen apropiado para cada escena."""
         if not self.mixer_ready or mode not in self.MUSIC_FILES:
             return
+        if self.music_mode != mode and pygame.mixer.music.get_busy():
+            pygame.mixer.music.fadeout(self.MUSIC_FADE_MS)
+            self.pending_music_mode = mode
+            return
+        self._start_music(mode)
+
+    def _start_music(self, mode):
+        self.pending_music_mode = None
         self.music_mode = mode
         self.music_index = -1
         self._next_music()
@@ -472,13 +526,17 @@ class SoundManager:
             if path:
                 try:
                     pygame.mixer.music.load(str(path))
-                    pygame.mixer.music.play()
+                    pygame.mixer.music.set_volume(self.MUSIC_VOLUMES[self.music_mode])
+                    pygame.mixer.music.play(fade_ms=self.MUSIC_FADE_MS)
                     return
                 except pygame.error:
                     continue
         pygame.mixer.music.stop()
 
     def update(self):
+        if (self.mixer_ready and self.pending_music_mode
+                and not pygame.mixer.music.get_busy()):
+            self._start_music(self.pending_music_mode)
         if (self.mixer_ready and self.music_enabled and self.music_mode
                 and not pygame.mixer.music.get_busy()):
             self._next_music()
@@ -505,10 +563,20 @@ class SoundManager:
         if not self.mixer_ready:
             return
         if enabled:
+            if self.pending_music_mode:
+                self._start_music(self.pending_music_mode)
             if self.music_mode:
                 self._next_music()
         else:
-            pygame.mixer.music.stop()
+            self.pending_music_mode = None
+            pygame.mixer.music.fadeout(self.MUSIC_FADE_MS)
+
+    def stop_music(self):
+        """Detiene la música activa con una transición suave."""
+        self.pending_music_mode = None
+        self.music_mode = None
+        if self.mixer_ready:
+            pygame.mixer.music.fadeout(self.MUSIC_FADE_MS)
 
     def set_effects_enabled(self, enabled):
         self.effects_enabled = enabled
@@ -716,6 +784,7 @@ class App:
     def go_menu(self):
         self.paused = False
         self.finished = False
+        self.audio.play_music("pregame")
         self.set_state("menu")
 
     def show_help(self):
@@ -819,16 +888,27 @@ class App:
         perception = state.get("perception") or {}
         for key, _, _, _ in SENSES:
             if perception.get(key):
-                self.audio.play(key)
+                self.audio.play(PERCEPTION_SOUNDS[key])
         if perception.get("bump"):
+            self.audio.play("bump")
             msg += " ¡Chocaste con un muro!"
         if perception.get("scream"):
+            self.audio.play("arrow_hit")
+            self.audio.play("wumpus_death")
             msg += " Se oyó un grito."
         self.message = msg
         if state["status"] != "running":
             self.finished = True
             self.result_hidden = False
-            self.audio.play("win" if state["status"] == "success" else "lose")
+            if state["status"] == "success":
+                self.audio.play("win")
+            else:
+                position = tuple(state["agent"]["position"])
+                pits = {tuple(cell) for cell in state["world"]["pits"]}
+                live_wumpus = {tuple(cell) for cell in state["world"]["live_wumpus"]}
+                self.audio.play("pit_fall" if position in pits else
+                                "wumpus_growl" if position in live_wumpus else "lose")
+                self.audio.play("lose")
 
     def start(self):
         try:
@@ -850,7 +930,7 @@ class App:
         self.max_lives = self.life_value(agent) or 0
         self.message = "Pedro empezará a explorar." if self.mode == "agent" else \
             "Usa las flechas del teclado o los botones."
-        self.audio.play_music("game")
+        self.audio.stop_music()
         self.set_state("game")
 
     @staticmethod
@@ -908,15 +988,13 @@ class App:
         except (pygame.error, AttributeError, TypeError):
             pass
 
-    def heading(self, title, subtitle="", icon_name="wumpus"):
-        if icon_name == "logo":
-            img = logo(150, 90)
-            if img:
-                self.screen.blit(img, (48, 20))
-            else:
-                self.screen.blit(icon("wumpus", 150), (48, 20))
+    def heading(self, title, subtitle=""):
+        img = logo(190, 110)
+        if img:
+            self.screen.blit(img, (64, 28))
         else:
-            self.screen.blit(icon(icon_name, 150), (48, 6))
+            draw_text(self.screen, "WUMPUS", (64, 28), 38, TEXT, anchor="topleft",
+                      title=True, outline=INK, outline_w=3)
         draw_text(self.screen, title, (W // 2, 38), 44, TEXT, anchor="midtop", title=True,
                   outline=INK, outline_w=3)
         if subtitle:
@@ -962,8 +1040,7 @@ class App:
 
     # ------------------------------------------------- ayuda / tutorial --
     def draw_help(self):
-        self.heading("Cómo jugar", f"Tutorial  ·  {self.help_page + 1} de {len(self.HELP_PAGES)}",
-                     "logo")
+        self.heading("Cómo jugar", f"Tutorial  ·  {self.help_page + 1} de {len(self.HELP_PAGES)}")
         panel_rect = pygame.Rect(70, 130, W - 140, 466)
         self.screen.blit(panel_surf(panel_rect.w, panel_rect.h, PANEL, BORDER, 24), panel_rect.topleft)
         draw_text(self.screen, self.HELP_PAGES[self.help_page], (panel_rect.x + 40, panel_rect.y + 24),
@@ -1064,7 +1141,7 @@ class App:
             for j, line in enumerate(lines):
                 draw_text(self.screen, line, (r.centerx, r.y + 186 + j * 30), 18, MUTED, True, "midtop")
         draw_text(self.screen, "Elegirás la modalidad cuando pulses Jugar en el menú principal.",
-                  (box.x + 40, box.bottom - 52), 17, MUTED, True)
+                  (box.x + 230, box.bottom - 52), 17, MUTED, True)
 
     # ------------------------------------------------- selección de partida --
     def draw_mode(self):
@@ -1084,7 +1161,7 @@ class App:
                  next_enabled=self.mode is not None)
 
     def draw_maps(self):
-        self.heading("Selecciona el mapa", "Escoge cualquiera")
+        self.heading("Selecciona el mapa")
         for i, (filename, name, desc) in enumerate(MAPS):
             col, row = i % 2, i // 2
             r = pygame.Rect(60 + col * (CARD_W + 30), 180 + row * 215, CARD_W, 195)
@@ -1222,14 +1299,14 @@ class App:
         self.notes.setdefault(pos, set()).update(senses & {"breeze", "stench"})
 
     def draw_topbar(self):
-        img = logo(150, 90)
-        if img and img.get_width() >= 2 * img.get_height():
-            self.screen.blit(img, (48, 20))
+        img = logo(190, 110)
+        if img:
+            self.screen.blit(img, (64, 28))
         else:
-            draw_text(self.screen, "WUMPUS", (48, 20), 38, TEXT, anchor="topleft", title=True,
+            draw_text(self.screen, "WUMPUS", (64, 28), 38, TEXT, anchor="topleft", title=True,
                       outline=INK, outline_w=3)
         manual = self.mode == "manual"
-        r = chip(self.screen, (248, 25), "explorer_S" if manual else "robot",
+        r = chip(self.screen, (282, 25), "explorer_S" if manual else "robot",
                  "Explorador" if manual else "Agente", SECONDARY)
         chip(self.screen, (r.right + 12, 25), "compass", MAPS[self.map_index][1], BORDER_HI)
         self.add((W - 76, 14, 52, 52), "", lambda: setattr(self, "paused", True), "secondary",
@@ -1309,12 +1386,12 @@ class App:
 
     def stat_tile(self, rect, icon_name, label, value=None, extra=None):
         self.screen.blit(panel_surf(rect.w, rect.h, (20, 23, 64), None, 12, False), rect.topleft)
-        self.screen.blit(icon(icon_name, 30), (rect.x + 10, rect.centery - 15))
-        draw_text(self.screen, label, (rect.x + 50, rect.y + 6), 11, MUTED, True)
+        self.screen.blit(icon(icon_name, 32), (rect.x + 10, rect.centery - 16))
+        draw_text(self.screen, label, (rect.x + 50, rect.y + 5), 10, MUTED, True)
         if extra:
             extra(rect)
         else:
-            draw_text(self.screen, value, (rect.x + 50, rect.y + 20), 20, TEXT, True)
+            draw_text(self.screen, value, (rect.x + 50, rect.y + 19), 19, TEXT, True)
 
     def draw_sidebar(self, state):
         agent = state["agent"]
@@ -1323,107 +1400,102 @@ class App:
         lives = self.life_value(agent)
         world = state["world"]
 
-        def arrows_extra(rect):
-            n = agent["arrows"]
-            shown = max(self.max_arrows, n)
-            if shown > 6:
-                draw_text(self.screen, f"x{n}", (rect.x + 50, rect.y + 20), 20, TEXT, True)
-                return
-            for i in range(shown):
-                col = None if i < n else (70, 76, 120)
-                self.screen.blit(icon("arrow", 20, col), (rect.x + 50 + i * 22, rect.y + 22))
-
         def hearts_extra(rect):
             for i in range(max(self.max_lives, lives or 0)):
                 col = None if i < (lives or 0) else (70, 76, 120)
                 self.screen.blit(icon("heart", 20, col), (rect.x + 50 + i * 22, rect.y + 22))
 
         tiles = [("gold", "ORO", f"{agent['collected_gold']}/{agent['total_gold']}", None),
-                 ("backpack", "FLECHAS", None, arrows_extra),
+                 ("arrow", "FLECHAS", f"x{agent['arrows']}", None),
                  ("pit", "POZOS", len(world["pits"]), None),
-                 ("wumpus", "WUMPUS VIVOS", len(world["live_wumpus"]), None)]
+                 ("wumpus", "WUMPUS", len(world["live_wumpus"]), None)]
         if lives is not None:
             tiles.append(("heart", "VIDA", None, hearts_extra))
         tiles.append(("glitter", "PUNTOS", agent["score"], None))
         rows = (len(tiles) + 1) // 2
-        panel = pygame.Rect(sx, 84, sw, 24 + rows * 50 - 6)
+        panel = pygame.Rect(sx, 84, sw, 22 + rows * 48)
         self.screen.blit(panel_surf(panel.w, panel.h, PANEL, BORDER, 18), panel.topleft)
         for i, (ico, label, value, extra) in enumerate(tiles):
             full = i == len(tiles) - 1 and len(tiles) % 2 == 1
             tw = panel.w - 24 if full else (panel.w - 32) // 2
             tx = panel.x + 12 + (0 if full else (i % 2) * (tw + 8))
-            self.stat_tile(pygame.Rect(tx, panel.y + 12 + (i // 2) * 50, tw, 44), ico, label, value, extra)
-        y = panel.bottom + 12
+            self.stat_tile(pygame.Rect(tx, panel.y + 10 + (i // 2) * 48, tw, 42), ico, label, value, extra)
+        y = panel.bottom + 10
         # --- brújula ---
         facing = norm_dir(agent["direction"])
-        comp = pygame.Rect(sx, y, sw, 90)
+        comp = pygame.Rect(sx, y, sw, 94)
         self.screen.blit(panel_surf(comp.w, comp.h, PANEL, BORDER, 18), comp.topleft)
-        img = compass_surf(38, facing)
+        img = compass_surf(31, facing)
         self.screen.blit(img, img.get_rect(center=(comp.x + 60, comp.centery)))
         px, py = agent["position"]
-        draw_text(self.screen, "POSICIÓN", (comp.x + 126, comp.y + 16), 11, MUTED, True)
-        draw_text(self.screen, f"({px}, {py})", (comp.x + 126, comp.y + 30), 22, TEXT, True)
-        draw_text(self.screen, "MIRANDO AL", (comp.x + 250, comp.y + 16), 11, MUTED, True)
-        draw_text(self.screen, DIR_NAMES[facing], (comp.x + 250, comp.y + 30), 22, PRIMARY, True)
-        draw_text(self.screen, f"Modo: {'manual' if self.mode == 'manual' else 'agente'}",
-                  (comp.x + 126, comp.y + 62), 14, MUTED, True)
-        y = comp.bottom + 12
+        draw_text(self.screen, f"({px}, {py})", (comp.x + 120, comp.centery), 21, TEXT, True, "midleft")
+        draw_text(self.screen, DIR_NAMES[facing], (comp.right - 18, comp.centery), 19, PRIMARY, True, "midright")
+        y = comp.bottom + 10
         # --- percepción ---
         p = state.get("perception") or {}
         active = [s for s in SENSES if p.get(s[0])]
-        per = pygame.Rect(sx, y, sw, 76 if len(active) <= 3 else 110)
+        per = pygame.Rect(sx, y, sw, 92)
         self.screen.blit(panel_surf(per.w, per.h, PANEL, BORDER, 18), per.topleft)
-        draw_text(self.screen, "PERCEPCIÓN", (per.x + 18, per.y + 10), 11, MUTED, True)
+        draw_text(self.screen, "SEÑALES", (per.x + 18, per.y + 10), 10, MUTED, True)
         if not active:
-            draw_text(self.screen, "Sin señales: casilla tranquila.", (per.x + 18, per.y + 44), 16, MUTED, True)
-        cx, cy = per.x + 14, per.y + 30
-        for key, label, ico, color in active:
-            if cx + 100 > per.right - 8:
-                cx, cy = per.x + 14, cy + 34
-            chip_rect = chip(self.screen, (cx, cy), ico, label, color)
-            self.hit(chip_rect, lambda sound=key: self.audio.play(sound))
-            cx = chip_rect.right + 8
-        y = per.bottom + 12
-        # --- mensaje ---
-        msg = pygame.Rect(sx, y, sw, 52)
-        self.screen.blit(panel_surf(msg.w, msg.h, (20, 23, 64), BORDER, 16, False), msg.topleft)
-        text_block(self.screen, self.message, (msg.x + 18, msg.y + 6), msg.w - 36, 15, TEXT, True,
-                   line_h=20, max_lines=2)
-        y = msg.bottom + 12
+            draw_text(self.screen, "—", (per.centerx, per.centery + 8), 22, MUTED, True, "center")
+        else:
+            signal_size = 38
+            total_width = len(active) * signal_size + (len(active) - 1) * 8
+            cx = per.centerx - total_width // 2
+            cy = per.y + 42
+            for key, _, ico, color in active:
+                chip_rect = pygame.Rect(cx, cy, signal_size, signal_size)
+                self.screen.blit(panel_surf(signal_size, signal_size, mix(color, PANEL, .78),
+                                            color, 12, False), chip_rect.topleft)
+                self.screen.blit(icon(ico, 28), icon(ico, 28).get_rect(center=chip_rect.center))
+                self.hit(chip_rect, lambda sound=PERCEPTION_SOUNDS[key]: self.audio.play(sound))
+                cx += signal_size + 8
         # --- acciones ---
-        act = pygame.Rect(sx, y, sw, 696 - y)
+        y = per.bottom + 12
+        if self.mode == "manual":
+            action_height = 696 - y
+        else:
+            action_height = 14 + 50 + 16 + 44 + 14
+        act = pygame.Rect(sx, y, sw, action_height)
         self.screen.blit(panel_surf(act.w, act.h, PANEL, BORDER, 18), act.topleft)
         if self.mode == "manual":
-            bw = (act.w - 24 - 16) // 3
-            items = [("Izquierda", "turn_left", "secondary", "TURN_LEFT", False),
-                     ("Avanzar", "arrow_up", "secondary", "FORWARD", False),
-                     ("Derecha", "turn_right", "secondary", "TURN_RIGHT", False),
-                     ("Recoger", "gold", "primary", "GRAB", True),
-                     ("Disparar", "arrow", "danger", "SHOOT", False),
-                     ("Salir", "exit", "tertiary", "CLIMB", False)]
-            bh = (act.h - 24 - 8) // 2
-            for i, (label, ico, kind, action, native) in enumerate(items):
-                self.add((act.x + 12 + (i % 3) * (bw + 8), act.y + 12 + (i // 3) * (bh + 8), bw, bh), label,
-                         lambda a=action: self.perform(a), kind, icon_name=ico, stack=True, size=15,
-                         native=native)
+            pad, gap = 14, 8
+            bw = (act.w - pad * 2 - gap) // 2
+            items = [("Girar izq.", "turn_left", "secondary", "TURN_LEFT"),
+                     ("Girar der.", "turn_right", "secondary", "TURN_RIGHT"),
+                     ("Avanzar", "arrow_up", "secondary", "FORWARD"),
+                     ("Recoger", "gold", "primary", "GRAB"),
+                     ("Disparar", "arrow", "danger", "SHOOT"),
+                     ("Salir", "exit", "tertiary", "CLIMB")]
+            bh = max(52, (act.h - pad * 2 - gap * 2) // 3)
+            for i, (label, ico, kind, action) in enumerate(items):
+                self.add((act.x + pad + (i % 2) * (bw + gap),
+                          act.y + pad + (i // 2) * (bh + gap), bw, bh), label,
+                         lambda a=action: self.perform(a), kind, icon_name=ico, stack=True, size=14)
         else:
-            bw = (act.w - 24 - 8) // 2
-            bh = (act.h - 24 - 8) // 2 - 6
+            pad, gap = 14, 10
+            bw = (act.w - pad * 2 - gap) // 2
             running = self.auto_agent
-            self.add((act.x + 12, act.y + 12, bw, bh), "Detener" if running else "Reanudar",
+            control_h = 50
+            control_y = act.y + pad
+            self.add((act.x + pad, control_y, bw, control_h), "Detener" if running else "Reanudar",
                      lambda: setattr(self, "auto_agent", not self.auto_agent),
                      "tertiary" if running else "primary", icon_name="pause" if running else "play",
-                     stack=True, size=16)
-            self.add((act.x + 20 + bw, act.y + 12, bw, bh), "Paso", self.agent_step, "secondary",
-                     icon_name="arrow_right", stack=True, size=16)
-            yy = act.y + 12 + bh + 8
+                     stack=True, size=14)
+            self.add((act.x + pad + bw + gap, control_y, bw, control_h), "Paso", self.agent_step,
+                     "secondary", icon_name="arrow_right", stack=True, size=14)
+            speed_y = control_y + control_h + 18
             sp = self.settings["speed"]
-            self.add((act.x + 12, yy, 52, 48), "", lambda: self.set_speed(sp - 1), "tertiary",
-                     sp > 0, "minus")
-            self.add((act.right - 64, yy, 52, 48), "", lambda: self.set_speed(sp + 1), "tertiary",
+            speed_button = 44
+            self.add((act.x + pad, speed_y, speed_button, speed_button), "",
+                     lambda: self.set_speed(sp - 1), "tertiary", sp > 0, "minus")
+            self.add((act.right - pad - speed_button, speed_y, speed_button, speed_button), "",
+                     lambda: self.set_speed(sp + 1), "tertiary",
                      sp < len(SPEEDS) - 1, "plus")
-            draw_text(self.screen, "VELOCIDAD", (act.centerx, yy + 2), 11, MUTED, True, "midtop")
-            draw_text(self.screen, SPEEDS[sp][0], (act.centerx, yy + 28), 21, PRIMARY, anchor="center", title=True)
+            draw_text(self.screen, "VELOCIDAD", (act.centerx, speed_y + 2), 11, MUTED, True, "midtop")
+            draw_text(self.screen, SPEEDS[sp][0], (act.centerx, speed_y + 23), 21, PRIMARY,
+                      anchor="center", title=True)
 
     # --------------------------------------------------------- modales --
     def dim(self, alpha=185):
@@ -1454,7 +1526,7 @@ class App:
         status = str(state["status"]).lower()
         agent = state["agent"]
         if status == "success":
-            return "win", "¡Ganaste!", "Has encontrado el tesoro y escapado de la cueva.", "chest"
+            return "win", "¡Ganaste!", "Has encontrado el tesoro y escapado.", "chest"
         if any(word in status for word in DEATH_WORDS):
             if "pit" in status or "pozo" in status:
                 reason = "Caíste en un pozo sin fondo…"
