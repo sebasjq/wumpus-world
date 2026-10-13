@@ -184,7 +184,7 @@ def text_block(surface, value, pos, width, size=16, color=TEXT, bold=False,
 # --------------------------------------------------------------------------- #
 # Dibujo suavizado: se dibuja a escala k y se reduce
 # --------------------------------------------------------------------------- #
-def _ss(w, h, fn, k=3):
+def _ss(w, h, fn, k=4):
     surf = pygame.Surface((w * k, h * k), pygame.SRCALPHA)
     fn(surf, k)
     return pygame.transform.smoothscale(surf, (w, h))

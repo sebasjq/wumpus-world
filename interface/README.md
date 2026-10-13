@@ -59,4 +59,7 @@ se puede usar el teclado (flechas, `G`, espacio y `C`) o los botones visibles.
 
 La configuración se guarda en `settings.json`. Se pueden activar o desactivar
 por separado la música, los efectos, la pantalla completa, las notas del mapa
-y las coordenadas.
+y las coordenadas. La ventana usa una superficie lógica de 1100×720 que Pygame
+escala con filtrado de máxima calidad; al redimensionarla o activar pantalla
+completa se conserva el suavizado y se utiliza sincronización vertical cuando
+el backend lo permite.

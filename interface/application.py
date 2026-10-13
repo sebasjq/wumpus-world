@@ -2,6 +2,7 @@
 
 import json
 import math
+import os
 
 import pygame
 
@@ -18,10 +19,22 @@ class App:
     HELP_PAGES = ["Tu misión", "Peligros", "Percepciones", "Controles", "Modalidades"]
 
     def __init__(self):
+        # SDL usa este filtro al ampliar la superficie lógica de SCALED.
+        # Debe configurarse antes de inicializar Pygame para que el renderer
+        # de la ventana lo tome en cuenta.
+        os.environ["SDL_RENDER_SCALE_QUALITY"] = "2"
         pygame.init()
-        pygame.display.set_caption("Wumpus World")
+        pygame.display.set_caption("Wumpus World", "Wumpus World")
         flags = pygame.SCALED | pygame.RESIZABLE
-        self.screen = pygame.display.set_mode((W, H), flags)
+        try:
+            self.screen = pygame.display.set_mode((W, H), flags, vsync=1)
+        except (TypeError, pygame.error):
+            # Algunas versiones/ventanas de Pygame no admiten vsync con
+            # SCALED; se conserva el renderizado suavizado como fallback.
+            self.screen = pygame.display.set_mode((W, H), flags)
+        window_icon = logo(64, 64)
+        if window_icon:
+            pygame.display.set_icon(window_icon)
         self.clock = pygame.time.Clock()
         self.settings = self.load_settings()
         self.audio = SoundManager(self.settings["music"], self.settings["effects"])
@@ -197,6 +210,15 @@ class App:
     def agent_step(self):
         if self.mode == "agent" and self.game and not self.paused and not self.finished:
             self.event_message(self.game.step())
+
+    def toggle_risk(self):
+        if self.mode == "agent" and self.game and not self.finished:
+            self.game.set_risk(not self.game.agent.allow_risk)
+            self.message = (
+                "Riesgo activado: el agente puede explorar casillas inciertas."
+                if self.game.agent.allow_risk
+                else "Riesgo desactivado: el agente solo explorará casillas seguras."
+            )
 
     def event_message(self, state):
         action = state.get("last_action")
@@ -624,14 +646,15 @@ class App:
         self.notes.setdefault(pos, set()).update(senses & {"breeze", "stench"})
 
     def draw_topbar(self):
-        img = logo(190, 110)
+        # En la vista de juego el tablero comienza más arriba que en los menús.
+        img = logo(132, 68)
         if img:
-            self.screen.blit(img, (64, 28))
+            self.screen.blit(img, (40, 8))
         else:
-            draw_text(self.screen, "WUMPUS", (64, 28), 38, TEXT, anchor="topleft", title=True,
+            draw_text(self.screen, "WUMPUS", (40, 8), 30, TEXT, anchor="topleft", title=True,
                       outline=INK, outline_w=3)
         manual = self.mode == "manual"
-        r = chip(self.screen, (282, 25), "pedro" if manual else "bot",
+        r = chip(self.screen, (190, 25), "pedro" if manual else "bot",
                  "Explorador" if manual else "Agente", SECONDARY)
         chip(self.screen, (r.right + 12, 25), "compass", MAPS[self.map_index][1], BORDER_HI)
         self.add((W - 76, 14, 52, 52), "", lambda: setattr(self, "paused", True), "secondary",
@@ -678,6 +701,16 @@ class App:
                         self.screen.blit(small, (cx + 5 + n * (small.get_width() + 1), cy + side - small.get_height() - 5))
         if state["status"] != "success":
             self.draw_explorer(state, rect, side)
+        # Solo se destaca el oro de la casilla que ocupa el explorador. El resto
+        # se muestra únicamente después de haber sido descubierto.
+        agent_position = tuple(state["agent"]["position"])
+        if agent_position in gold:
+            x, y = agent_position
+            cx, cy = rect.x + (x - .5) * side, rect.bottom - (y - .5) * side
+            gold_size = max(12, int(side * .42))
+            gold_img = icon("gold", gold_size)
+            self.screen.blit(gold_img, gold_img.get_rect(
+                center=(round(cx + side * .28), round(cy - side * .28))))
         if self.settings["coords"] and side >= 24:
             for x in range(1, width + 1):
                 draw_text(self.screen, x, (rect.x + (x - .5) * side, rect.bottom + 9), 12, MUTED, True, "center")
@@ -781,7 +814,7 @@ class App:
         if self.mode == "manual":
             action_height = 696 - y
         else:
-            action_height = 14 + 50 + 16 + 44 + 14
+            action_height = 14 + 50 + 18 + 44 + 12 + 48 + 14
         act = pygame.Rect(sx, y, sw, action_height)
         self.screen.blit(panel_surf(act.w, act.h, PANEL, BORDER, 18), act.topleft)
         if self.mode == "manual":
@@ -821,6 +854,12 @@ class App:
             draw_text(self.screen, "VELOCIDAD", (act.centerx, speed_y + 2), 11, MUTED, True, "midtop")
             draw_text(self.screen, SPEEDS[sp][0], (act.centerx, speed_y + 23), 21, PRIMARY,
                       anchor="center", title=True)
+            risk_y = speed_y + speed_button + 12
+            risk_enabled = state["allow_risk"]
+            self.add((act.x + pad, risk_y, act.w - pad * 2, 48),
+                     "Riesgo: Activado" if risk_enabled else "Riesgo: Desactivado",
+                     self.toggle_risk, "success" if risk_enabled else "tertiary",
+                     icon_name="check" if risk_enabled else "close", size=15)
 
     # --------------------------------------------------------- modales --
     def dim(self, alpha=185):
@@ -894,14 +933,17 @@ class App:
                  self.go_menu, "tertiary", icon_name="home", size=19)
 
     def draw_reveal_bar(self):
-        bar = pygame.Rect(0, 0, 620, 74)
-        bar.midbottom = (SX // 2, H - 10)
+        # Ocupa toda la zona vertical del menú de acciones del lateral.
+        bar = pygame.Rect(SX, 470, SB_W, H - 470 - 24)
         self.screen.blit(panel_surf(bar.w, bar.h, PANEL, BORDER, 20), bar.topleft)
-        draw_text(self.screen, "Cueva revelada", (bar.x + 26, bar.centery), 21, TEXT, anchor="midleft", title=True)
-        self.add((bar.x + 230, bar.y + 10, 190, 54), "Ver resultado",
-                 lambda: setattr(self, "result_hidden", False), "primary", icon_name="check", size=18)
-        self.add((bar.x + 430, bar.y + 10, 170, 54), "Menú", self.go_menu, "tertiary",
-                 icon_name="home", size=18)
+        draw_text(self.screen, "Cueva revelada", (bar.centerx, bar.y + 24), 21, TEXT,
+                  anchor="midtop", title=True)
+        button_h = 54
+        self.add((bar.x + 18, bar.y + 72, bar.w - 36, button_h), "Ver resultado",
+                 lambda: setattr(self, "result_hidden", False), "primary",
+                 icon_name="check", size=18)
+        self.add((bar.x + 18, bar.y + 72 + button_h + 14, bar.w - 36, button_h), "Menú", self.go_menu,
+                 "tertiary", icon_name="home", size=18)
 
 
 def main():

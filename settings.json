@@ -1,8 +1,8 @@
 {
-  "speed": 3,
+  "speed": 0,
   "fullscreen": false,
   "notes": true,
-  "coords": true,
+  "coords": false,
   "music": true,
   "effects": true,
   "sound": true
