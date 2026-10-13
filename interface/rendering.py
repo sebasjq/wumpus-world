@@ -252,7 +252,9 @@ def icon(name, size, color=None):
     size = max(4, int(size))
     interface_icons = {
         "arrow": "Flecha_icon.png",
+        "bot": "Bot_icon.png",
         "gold": "Oro_icon.png",
+        "pedro": "Pedro_icon.png",
         "pit": "Pozo_icon.png",
         "wumpus": "Wumpus_icon.png",
         "chest": "Cofre_icon.png",

@@ -397,7 +397,7 @@ class App:
                 self.screen.blit(tile(side - 4, known, (row * 4 + col) % 4),
                                  (x0 + col * side, y0 + row * side))
         self.screen.blit(entrance_overlay(side - 4), (x0, y0 + 2 * side))
-        self.screen.blit(icon("explorer_E", 78), (x0 + 9, y0 + 2 * side + 6))
+        self.screen.blit(icon("pedro", 78), (x0 + 9, y0 + 2 * side + 6))
         self.screen.blit(icon("help_gold", 62), (x0 + 3 * side + 16, y0 + 16))
         tx, tw = box.x + 500, box.w - 560
         text_block(self.screen, "Pedro entra en una cueva oscura donde no ve nada. Tu objetivo es "
@@ -453,9 +453,9 @@ class App:
             draw_text(self.screen, cap, (r.right + 22, r.centery), 19, TEXT, True, "midleft")
 
     def help_modes(self, box):
-        cards = [("explorer_S", "Explorador", ["Tú tomas cada decisión.", "Usa el teclado o los botones.",
+        cards = [("pedro", "Explorador", ["Tú tomas cada decisión.", "Usa el teclado o los botones.",
                                                "Descubre la cueva paso a paso."]),
-                 ("robot", "Observar al agente", ["Pedro deduce y actúa solo.", "Puedes pausar, ir paso a paso",
+                 ("bot", "Observar al agente", ["Pedro deduce y actúa solo.", "Puedes pausar, ir paso a paso",
                                                   "y cambiar la velocidad."])]
         cw = (box.w - 80 - 30) // 2
         for i, (ico, title, lines) in enumerate(cards):
@@ -471,9 +471,9 @@ class App:
     # ------------------------------------------------- selección de partida --
     def draw_mode(self):
         self.heading("Elige tu modalidad", "Las dos modalidades usan el mismo mundo y las mismas reglas.")
-        cards = [("manual", "explorer_S", "Explorador", "Toma cada decisión y descubre la cueva.",
+        cards = [("manual", "pedro", "Explorador", "Toma cada decisión y descubre la cueva.",
                   "Teclado + botones"),
-                 ("agent", "robot", "Observar al agente", "Pedro deduce, actúa y vuelve a la entrada.",
+                 ("agent", "bot", "Observar al agente", "Pedro deduce, actúa y vuelve a la entrada.",
                   "Pausa, paso a paso y velocidad")]
         for i, (kind, ico, title, desc, hint) in enumerate(cards):
             r = pygame.Rect(60 + i * (CARD_W + 30), 170, CARD_W, 380)
@@ -520,7 +520,7 @@ class App:
             self.screen.blit(panel_surf(r.w, r.h, PANEL, BORDER, 22), r.topleft)
         manual = self.mode == "manual"
         draw_text(self.screen, "MODALIDAD", (left.x + 30, left.y + 24), 15, MUTED, True)
-        self.screen.blit(icon("explorer_S" if manual else "robot", 120), (left.x + 18, left.y + 58))
+        self.screen.blit(icon("pedro" if manual else "bot", 120), (left.x + 18, left.y + 58))
         draw_text(self.screen, "Explorador" if manual else "Observar al agente",
                   (left.x + 150, left.y + 92), 28, TEXT, title=True)
         text_block(self.screen, "Controlas a Pedro con el teclado o los botones." if manual else
@@ -580,7 +580,7 @@ class App:
                     general_y + 192, "coords", "compass")
 
         speed_y = content_y + 452
-        section("Agente", speed_y, "robot")
+        section("Agente", speed_y, "bot")
         draw_text(self.screen, "Velocidad de avance", (viewport.x + 18, speed_y + 52),
                   21, TEXT, title=True)
         draw_text(self.screen, "Tiempo entre pasos en la modalidad agente.",
@@ -631,7 +631,7 @@ class App:
             draw_text(self.screen, "WUMPUS", (64, 28), 38, TEXT, anchor="topleft", title=True,
                       outline=INK, outline_w=3)
         manual = self.mode == "manual"
-        r = chip(self.screen, (282, 25), "explorer_S" if manual else "robot",
+        r = chip(self.screen, (282, 25), "pedro" if manual else "bot",
                  "Explorador" if manual else "Agente", SECONDARY)
         chip(self.screen, (r.right + 12, 25), "compass", MAPS[self.map_index][1], BORDER_HI)
         self.add((W - 76, 14, 52, 52), "", lambda: setattr(self, "paused", True), "secondary",
@@ -699,7 +699,7 @@ class App:
         py += math.sin(self.t * 5) * side * .02
         g = glow(int(side * .8), PRIMARY)
         self.screen.blit(g, g.get_rect(center=(px, py)))
-        img = icon(f"explorer_{facing}", int(side * .88))
+        img = icon("pedro" if self.mode == "manual" else "bot", int(side * .88))
         self.screen.blit(img, img.get_rect(center=(px, py - side * .03)))
         if side >= 30:
             vx, vy = DIR_VEC[facing]
