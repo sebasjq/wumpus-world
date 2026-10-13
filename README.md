@@ -12,7 +12,6 @@ Desde la raíz del repositorio:
 ```bash
 python main.py
 python -m unittest discover -s tests -p '*.py' -v
-python tests/simulate.py
 ```
 
 `main.py` inicia la interfaz gráfica. También puede iniciarse con
@@ -24,7 +23,7 @@ python tests/simulate.py
 |---|---|
 | [logic/](logic/README.md) | Reglas del mundo, decisiones, búsqueda y controlador `Game`. |
 | [data/](data/README.md) | Tableros en JSON. |
-| [interface/](interface/README.md) | Interfaz Pygame completa, navegación y controles del juego. |
+| [interface/](interface/README.md) | Interfaz Pygame, navegación, widgets, audio y recursos organizados por tipo. |
 | [tests/](tests/README.md) | Pruebas y simulaciones reproducibles. |
 | [docs/](docs/README.md) | Contrato para la interfaz e informe de revisión. |
 | `main.py` | Inicia la interfaz y conecta sus acciones con `Game`. |
