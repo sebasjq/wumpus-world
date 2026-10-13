@@ -374,6 +374,11 @@ class App:
             self.screen.blit(icon("wumpus", 128), (W // 2 - 64, 14))
             draw_text(self.screen, "WUMPUS", (W // 2, 196), 108, TEXT, anchor="center",
                       title=True, outline=INK, outline_w=7)
+        credit = pygame.Rect(W // 2 - 275, H - 58, 550, 42)
+        self.screen.blit(panel_surf(credit.w, credit.h, PRIMARY, darken(PRIMARY, .2), 18),
+                         credit.topleft)
+        draw_text(self.screen, "Realizado por Sebastián Sánchez y Simón Paipa",
+                  credit.center, 18, PRIMARY_INK, True, "center")
         bx = W // 2 - 160
         self.add((bx, 300, 320, 62), "Jugar", lambda: self.set_state("mode"), "primary",
                  icon_name="menu_play", size=26)
