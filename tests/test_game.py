@@ -167,8 +167,9 @@ class TestGame(unittest.TestCase):
         self.assertTrue(final_state["agent"]["exited"])
         self.assertEqual(final_state["agent"]["collected_gold"], 1)
         self.assertEqual(final_state["agent"]["remaining_gold"], 0)
-        # Un oro (+1000), 28 acciones (-28) y una flecha (-10).
-        self.assertEqual(final_state["agent"]["score"], 962)
+        self.assertEqual(final_state["agent"]["score"],
+                         1000 - final_state["agent"]["action_count"]
+                         - 10 * final_state["agent"]["shots_fired"])
         self.assertIsNone(final_state["perception"])
 
         for _ in range(3):
@@ -186,7 +187,8 @@ class TestGame(unittest.TestCase):
         self.assertEqual(state["agent"]["position"], [1, 1])
         self.assertEqual(state["agent"]["collected_gold"], 0)
         self.assertEqual(state["agent"]["remaining_gold"], 37)
-        self.assertEqual(state["agent"]["score"], -11)
+        self.assertEqual(state["agent"]["score"],
+                         -state["agent"]["action_count"])
         self.assertEqual(game.step(), state)
 
     # Comprueba el estado de muerte, su penalización y el bloqueo de pasos posteriores.

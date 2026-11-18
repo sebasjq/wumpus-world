@@ -21,7 +21,7 @@ python -m unittest discover -s tests -p '*.py' -v
 
 | Archivo o carpeta | Función |
 |---|---|
-| [logic/](logic/README.md) | Reglas del mundo, decisiones, búsqueda y controlador `Game`. |
+| [logic/](logic/README.md) | Reglas del mundo, decisiones y controlador `Game`. |
 | [data/](data/README.md) | Tableros en JSON. |
 | [interface/](interface/README.md) | Interfaz Pygame, navegación, widgets, audio y recursos organizados por tipo. |
 | [tests/](tests/README.md) | Pruebas y simulaciones reproducibles. |
@@ -34,7 +34,7 @@ python -m unittest discover -s tests -p '*.py' -v
 
 Se utilizan coordenadas `[x, y]` desde 1; el norte aumenta `y`. Pedro percibe brisa, hedor, brillo, golpe y grito. Primero explora casillas seguras; después intenta disparar a Wumpus confirmados y, si está permitido, entrar a casillas inciertas. Finalmente regresa y sale por la entrada.
 
-La puntuación es `1000 × oro - acciones - 10 × disparos - 1000 si muere`. BFS busca rutas con menos desplazamientos entre casillas conocidas, sin incluir el costo de los giros en la búsqueda.
+La puntuación es `1000 × oro - acciones - 10 × disparos - 1000 si muere`. Pedro decide con las percepciones y recuerda las casillas visitadas para desplazarse y regresar.
 
 ## Integrantes
 

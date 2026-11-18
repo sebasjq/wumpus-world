@@ -5,7 +5,6 @@ from pathlib import Path
 
 from logic.agent import Agent
 from logic.environment import Environment
-from logic.search import bfs
 
 # Ubica la raiz del proyecto para encontrar data/ sin depender
 # de la carpeta actual
@@ -297,30 +296,14 @@ class TestLogic(unittest.TestCase):
             )
         )
 
-    # Comprueba la ruta más corta, casillas desconectadas 
-    # y un origen no seguro.
-    def test_bfs(self):
+    # Comprueba que el agente recuerda cómo volver por casillas visitadas.
+    def test_known_steps(self):
         agent = Agent((1, 1), 1, (4, 4))
-        safe = {(1, 1), (1, 2), (2, 2), (3, 2)}
-
-        path, distance = bfs(
-            safe, (1, 1), (3, 2), agent.get_neighbors
-        )
-
-        self.assertEqual(
-            path, [(1, 1), (1, 2), (2, 2), (3, 2)]
-        )
-        self.assertEqual(distance, 3)
-
-        self.assertIsNone(
-            bfs(
-                {(1, 1), (3, 3)},
-                (1, 1), (3, 3), agent.get_neighbors
-            )
-        )
-
-        with self.assertRaises(ValueError):
-            bfs(safe, (4, 4), (1, 1), agent.get_neighbors)
+        agent.parents.update({(1, 2): (1, 1), (2, 2): (1, 2), (3, 2): (2, 2)})
+        agent.safe_cells.update(agent.parents)
+        agent.position = (3, 2)
+        self.assertEqual(agent.next_known_step((1, 1)), (2, 2))
+        self.assertEqual(agent.tree_distance((1, 1)), 3)
 
     # Comprueba la opción de riesgo y que excluye los peligros confirmados.
     def test_risk_toggle_and_confirmed_danger_exclusion(self):

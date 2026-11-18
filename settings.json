@@ -1,6 +1,6 @@
 {
-  "speed": 0,
-  "fullscreen": false,
+  "speed": 3,
+  "fullscreen": true,
   "notes": true,
   "coords": false,
   "music": true,

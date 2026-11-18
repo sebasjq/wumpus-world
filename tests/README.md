@@ -2,7 +2,7 @@
 
 | Archivo | Qué verifica |
 |---|---|
-| `tests_logic.py` | Reglas del entorno, conocimiento, BFS, acciones, peligros y puntuación. |
+| `tests_logic.py` | Reglas del entorno, conocimiento, recorrido, acciones, peligros y puntuación. |
 | `test_game.py` | Respuestas de `Game`, estados finales, reinicio, opciones y compatibilidad con JSON. |
 
 Desde la raíz:

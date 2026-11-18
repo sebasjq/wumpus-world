@@ -1,5 +1,3 @@
-from logic.search import bfs # Importa la función bfs desde el módulo logic.search para realizar búsquedas en anchura (BFS) en el entorno del agente.
-
 class Agent:
 
     # Constructor del agente, inicializa la posición, dirección, tamaño del tablero, 
@@ -22,6 +20,8 @@ class Agent:
         self.visited = set() # Conjunto de posiciones visitadas
         self.safe_cells = {initial_position} # Conjunto de celdas seguras / La posición inicial siempre es segura...
         self.perceptions = {} # Diccionario para almacenar percepciones para cada posición
+        self.parents = {initial_position: None} # Recuerda por dónde se entró a cada casilla visitada
+        self.last_position = initial_position
 
         # Ampliación del conocimiento del agente
         self.no_pit_cells = {initial_position} # Conjunto de celdas sin pozos 
@@ -49,6 +49,11 @@ class Agent:
 
         if not self.alive or self.exited:
             return  # Si el agente no está vivo, no puede percibir nada
+
+        if self.position != self.last_position:
+            if self.position not in self.parents:
+                self.parents[self.position] = self.last_position
+            self.last_position = self.position
 
         if perception["scream"] and self.last_shot_path:
             self.possible_dead_cells.update(self.last_shot_path)  # Actualiza las celdas que podrían tener un Wumpus muerto
@@ -105,27 +110,14 @@ class Agent:
         # Ejemplo: Si safe_cells = {(1, 1), (1, 2), (2, 1)} y visited = {(1, 1)}, entonces unvisited_safe_cells = {(1, 2), (2, 1)}
         unvisited_safe_cells = self.safe_cells - self.visited
 
-        # Implementar la búsqueda en anchura (BFS) para encontrar un camino hacia una celda segura no visitada...
-        best_path = None
-        best_distance = float('inf') # Inicializa la mejor distancia como infinito para encontrar la mínima...
+        if unvisited_safe_cells:
+            # Solo entra en casillas cuya seguridad ya fue deducida.
+            destination = min(unvisited_safe_cells, key=lambda cell: (self.tree_distance(cell), cell))
+            next_position = self.next_known_step(destination)
+            if next_position is not None:
+                return self.move_action(next_position)
 
-        for destination in sorted(unvisited_safe_cells): # Ordena las celdas seguras no visitadas para garantizar consistencia en la búsqueda...
-            result = bfs(
-                self.safe_cells,
-                self.position, 
-                destination, 
-                self.get_neighbors) # Llama a la función bfs para encontrar un camino hacia un conjunto de celdas seguras no visitadas...
-
-            # Posteriormente, se toma el resultado de la búsqueda y se compara la distancia encontrada 
-            # con la mejor distancia conocida. Si se encuentra un camino más corto, se actualiza el mejor camino y la mejor distancia, para luego avanzar hacia ella...
-            if result is not None:
-                path, distance = result # Desempaqueta el resultado de bfs en camino y distancia...
-
-                if distance < best_distance: # Si la distancia encontrada es menor que la mejor distancia conocida...
-                    best_path = path # Actualiza el mejor camino encontrado...
-                    best_distance = distance # Actualiza la mejor distancia encontrada...
-
-        if best_path is None: 
+        if not unvisited_safe_cells:
 
             # Intenta disparar cuando no puede seguir explorando
             action = self.shoot_action()
@@ -143,13 +135,48 @@ class Agent:
             self.returning_home = True
             return self.return_action()
         
-        # Avanzar hacia la siguiente celda en el mejor camino encontrado...
-        next_position = best_path[1] # Obtiene la siguiente posición en el mejor camino encontrado...
+        self.returning_home = True
+        return self.return_action()
 
-        # Llama al método move_action para determinar la acción necesaria para moverse hacia la siguiente posición...
-        # Hasta este momento Pedro ya selecciona una ruta hacia la casilla segura pendiente más cercana. Posteriormente se convierte next_position
-        # en una acción según su orientación...
-        return self.move_action(next_position) 
+    def known_ancestors(self, position):
+        # La secuencia guardada al visitar casillas conduce hasta la entrada.
+        ancestors = []
+        while position is not None:
+            ancestors.append(position)
+            position = self.parents.get(position)
+        return ancestors
+
+    def next_known_step(self, destination):
+        # El destino puede ser una casilla segura adyacente todavía sin visitar.
+        if destination == self.position:
+            return None
+        if destination in self.get_neighbors(self.position) and destination in self.safe_cells:
+            return destination
+        if destination not in self.parents:
+            known_neighbors = [cell for cell in self.get_neighbors(destination) if cell in self.parents]
+            if not known_neighbors:
+                return None
+            departure = min(known_neighbors, key=lambda cell: (self.tree_distance(cell), cell))
+            return self.next_known_step(departure)
+
+        current_ancestors = self.known_ancestors(self.position)
+        destination_ancestors = self.known_ancestors(destination)
+        if self.position in destination_ancestors:
+            return destination_ancestors[destination_ancestors.index(self.position) - 1]
+        for ancestor in current_ancestors:
+            if ancestor in destination_ancestors:
+                return self.parents[self.position]
+        return None
+
+    def tree_distance(self, destination):
+        # Prioriza menos pasos sobre casillas conocidas, sin explorar el tablero.
+        if destination not in self.parents:
+            known_neighbors = [cell for cell in self.get_neighbors(destination) if cell in self.parents]
+            return 1 + min((self.tree_distance(cell) for cell in known_neighbors), default=1000000)
+        current = self.known_ancestors(self.position)
+        target = self.known_ancestors(destination)
+        common = next((cell for cell in current if cell in target), None)
+        return current.index(common) + target.index(common) if common is not None else 1000000
 
     # Método para obtener las celdas vecinas de una posición dada.
     def get_neighbors(self, position):
@@ -295,7 +322,7 @@ class Agent:
         if self.arrows <= 0 or not live_targets:  # Si no hay flechas disponibles o no hay Wumpus confirmado para disparar...
             return None # No hay flechas disponibles o no hay Wumpus confirmado para disparar...
 
-        best_path = None
+        best_position = None
         best_target = None
         best_distance = float('inf') # Inicializa la mejor distancia como infinito para encontrar la mínima...
 
@@ -310,28 +337,22 @@ class Agent:
                 if shooting_x != target_x and shooting_y != target_y:
                     continue
 
-                result = bfs(
-                    self.safe_cells,
-                    self.position, 
-                    shooting_position, 
-                    self.get_neighbors) # Llama a la función bfs para encontrar un camino hacia una celda segura desde donde disparar al Wumpus confirmado...
-
-                if result is not None:
-                    path, distance = result # Desempaqueta el resultado de bfs en camino y distancia...
-
-                    if distance < best_distance: # Si la distancia encontrada es menor que la mejor distancia conocida...
-                        best_path = path # Actualiza el mejor camino encontrado...
-                        best_target = target # Actualiza el mejor objetivo (Wumpus confirmado) encontrado...
-                        best_distance = distance # Actualiza la mejor distancia encontrada...
+                if shooting_position not in self.parents:
+                    continue
+                distance = self.tree_distance(shooting_position)
+                if distance < best_distance:
+                    best_position = shooting_position
+                    best_target = target
+                    best_distance = distance
 
         # Si no se encontró ningún camino hacia una celda segura desde donde disparar 
         # al Wumpus confirmado...
-        if best_path is None:
+        if best_position is None:
             return None
 
         # Si todavia no llegó, decide como avanzar hacia ella
-        if len(best_path) > 1:
-            next_position = best_path[1] # Obtiene la siguiente posición en el mejor camino encontrado...
+        if best_position != self.position:
+            next_position = self.next_known_step(best_position)
             return self.move_action(next_position) # Llama al método move_action para determinar la acción necesaria para moverse hacia la siguiente posición...
 
         # Si ya llegó a la posición desde donde disparar, decide disparar.
@@ -392,7 +413,7 @@ class Agent:
         if not self.allow_risk:
             return None  # Si no se permite tomar riesgos, no se puede decidir una acción de riesgo
 
-        best_path = None
+        best_departure = None
         best_target = None
         best_distance = float('inf') 
 
@@ -406,16 +427,9 @@ class Agent:
         # hacia una casilla incierta, y target es la casilla incierta a la que Pedro quiere entrar.
         for departure in sorted(self.safe_cells):
 
-            result = bfs(
-                self.safe_cells,
-                self.position, 
-                departure, 
-                self.get_neighbors) # Llama a la función bfs para encontrar un camino hacia una celda segura desde donde entrar a una incierta...
-
-            if result is None:
+            if departure not in self.parents:
                 continue
-
-            path, distance = result # Desempaqueta el resultado de bfs en camino y distancia...
+            distance = self.tree_distance(departure)
 
             for target in sorted(self.get_neighbors(departure)):
 
@@ -431,16 +445,16 @@ class Agent:
                 total_distance = distance + 1
 
                 if total_distance < best_distance: # Si la distancia total encontrada es menor que la mejor distancia conocida...
-                    best_path = path # Actualiza el mejor camino encontrado...
+                    best_departure = departure
                     best_target = target # Actualiza el mejor objetivo (casilla incierta) encontrado...
                     best_distance = total_distance # Actualiza la mejor distancia encontrada...
 
-        if best_path is None:
+        if best_departure is None:
             return None  # Si no se encontró ningún camino hacia una celda segura desde donde entrar a una incierta, no se puede decidir una acción de riesgo
 
         # Primero recorre únicamente las casillas seguras
-        if len(best_path) > 1:
-            return self.move_action(best_path[1])
+        if best_departure != self.position:
+            return self.move_action(self.next_known_step(best_departure))
 
         # Ya está junto a la candidata: gira o avanza hacia ella
         return self.move_action(best_target)
@@ -454,20 +468,11 @@ class Agent:
         if self.position == self.initial_position:
             return "CLIMB"
 
-        # Busca una ruta hasta la entrada usando BFS con casillas seguras
-        result = bfs(
-            self.safe_cells,
-            self.position, 
-            self.initial_position, 
-            self.get_neighbors)
-
-        if result is None:
+        # Retrocede por las casillas que ya recorrió y comprobó seguras.
+        next_position = self.next_known_step(self.initial_position)
+        if next_position is None:
             return "NO_SAFE_PATH"  # No hay ruta segura conocida hasta la entrada
-
-        path, distance = result
-
-        # Decide como avanzar hacia la siguiente celda en el camino de regreso a la entrada
-        return self.move_action(path[1])
+        return self.move_action(next_position)
             
 
 
