@@ -1,42 +1,29 @@
 # Wumpus World
 
-Proyecto de Inteligencia Artificial de Ingeniería en Multimedia, Universidad Militar Nueva Granada. Pedro explora una cueva, deduce cuáles casillas son seguras, recoge oro y vuelve a la entrada. Puede retirarse si no encuentra cómo continuar o morir al tomar un riesgo.
+<p align="center"><img src="docs/interfaz.png" width="680" alt="Menú principal de Wumpus World"></p>
 
-## Ejecución
+Una aventura gráfica y un ejercicio de inteligencia artificial inspirado en el mundo de Wumpus. Pedro explora una cueva, interpreta señales del entorno y debe recoger el oro para regresar a la entrada con vida.
 
-Se usa Python 3.12 en la revisión. La lógica utiliza únicamente la biblioteca
-estándar; la vista previa usa Pygame-CE.
+## Cómo se juega
 
-Desde la raíz del repositorio:
+Las casillas cercanas a peligros dejan pistas: la brisa advierte de un pozo, el hedor de Wumpus y el brillo señala el oro. Pedro recuerda lo que ha visitado y usa esas percepciones para decidir por dónde avanzar. Puede recoger el oro, disparar una flecha y volver a la salida; cada acción afecta la puntuación.
+
+La puntuación premia el oro y penaliza acciones, disparos y muerte. Los tableros se cargan desde `data/`; las reglas, el agente y el estado de partida están en `logic/`, y la experiencia gráfica está en `interface/`.
+
+## Abrir el juego
+
+En Windows, descarga y ejecuta el juego portable. No requiere instalar Python.
+
+<p align="center"><a href="https://github.com/sebasjq/wumpus-world/releases/latest/download/WumpusWorld.exe"><strong>⬇ Descargar Wumpus World para Windows</strong></a></p>
+
+Para ejecutar desde el código se requiere Python 3.12 y Pygame-CE:
 
 ```bash
+python -m pip install -r requirements.txt
 python main.py
-python -m unittest discover -s tests -p '*.py' -v
 ```
 
-`main.py` inicia la interfaz gráfica. También puede iniciarse con
-`python -m interface.app`.
+## Equipo
 
-## Organización
-
-| Archivo o carpeta | Función |
-|---|---|
-| [logic/](logic/README.md) | Reglas del mundo, decisiones y controlador `Game`. |
-| [data/](data/README.md) | Tableros en JSON. |
-| [interface/](interface/README.md) | Interfaz Pygame, navegación, widgets, audio y recursos organizados por tipo. |
-| [tests/](tests/README.md) | Pruebas y simulaciones reproducibles. |
-| [docs/](docs/README.md) | Contrato para la interfaz e informe de revisión. |
-| `main.py` | Inicia la interfaz y conecta sus acciones con `Game`. |
-| `requirements.txt` | Dependencias externas de la vista previa. |
-| `.gitignore` | Evita subir cachés, entornos virtuales y archivos temporales. |
-
-## Reglas generales
-
-Se utilizan coordenadas `[x, y]` desde 1; el norte aumenta `y`. Pedro percibe brisa, hedor, brillo, golpe y grito. Primero explora casillas seguras; después intenta disparar a Wumpus confirmados y, si está permitido, entrar a casillas inciertas. Finalmente regresa y sale por la entrada.
-
-La puntuación es `1000 × oro - acciones - 10 × disparos - 1000 si muere`. Pedro decide con las percepciones y recuerda las casillas visitadas para desplazarse y regresar.
-
-## Integrantes
-
-- Juan Sebastián Sánchez Quimbaya.
-- Simón Tomás Paipa Bravo.
+- Simón Tomás Paipa Bravo
+- Juan Sebastián Sánchez Quimbaya
