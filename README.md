@@ -46,13 +46,6 @@ En Windows, descarga y ejecuta el juego portable. No requiere instalar Python.
 
 <p align="center"><a href="https://github.com/sebasjq/wumpus-world/releases/latest/download/WumpusWorld.exe"><strong>⬇ Descargar Wumpus World para Windows</strong></a></p>
 
-Para ejecutar desde el código se requiere Python 3.12 y Pygame-CE:
-
-```bash
-python -m pip install -r requirements.txt
-python main.py
-```
-
 ## Equipo
 
 - Simón Tomás Paipa Bravo
